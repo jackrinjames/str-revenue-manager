@@ -1,0 +1,2686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Revenue Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+:root{color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;padding:20px 20px 130px;background:#f4f4f6;color:#1a1a1a;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5}
+h1{font-size:22px;margin:0 0 3px;letter-spacing:-.02em}
+h2{font-size:16px;margin:0;letter-spacing:-.01em}
+h3{font-size:11px;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.05em;color:#6b7280}
+.sub{color:#6b7280;font-size:13px;margin-bottom:18px}
+.muted{color:#6b7280}.tiny{font-size:12px}.up{color:#15803d}.down{color:#b91c1c}
+.bar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+button{font:inherit;font-size:13px;padding:6px 12px;border:1px solid #d4d4d8;background:#fff;border-radius:7px;cursor:pointer;color:#3f3f46}
+button:hover:not(:disabled){background:#f4f4f5}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.on{background:#18181b;border-color:#18181b;color:#fff}
+button.stage{font-size:12px;padding:4px 10px}
+button.go{background:#15803d;border-color:#15803d;color:#fff;font-weight:600}
+button.go:hover:not(:disabled){background:#166534}
+button.warn{color:#b91c1c;border-color:#fecaca}
+button.x{border:none;background:none;color:#a1a1aa;font-size:16px;line-height:1;padding:2px 6px}
+button.x:hover{color:#3f3f46;background:#f4f4f5}
+select,input[type=number]{font:inherit;font-size:13px;padding:5px 8px;border:1px solid #d4d4d8;border-radius:6px;font-variant-numeric:tabular-nums}
+input[type=number]{width:86px}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.03em;font-weight:600}
+.card{background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:18px;margin-bottom:14px;
+  box-shadow:0 1px 2px rgba(16,16,20,.04)}
+.chead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap}
+.pill.mini{padding:0 5px;font-size:9.5px;letter-spacing:.03em;vertical-align:1px;margin-left:3px;font-weight:700}
+.p-raise{background:#dcfce7;color:#15803d}.p-cut{background:#fee2e2;color:#b91c1c}
+.p-hold{background:#f4f4f5;color:#52525b}.p-watch{background:#fef3c7;color:#a16207}
+.p-broke{background:#450a0a;color:#fff}
+.p-surge{background:#fef3c7;color:#a16207;border:1px solid #fde68a}
+/* Recommendation buttons carry their direction in colour */
+button.rec{padding:2px 8px;font-weight:600;font-variant-numeric:tabular-nums}
+button.rec-raise{background:#dcfce7;border-color:#86efac;color:#15803d}
+button.rec-raise:hover:not(:disabled){background:#bbf7d0}
+button.rec-cut{background:#fee2e2;border-color:#fca5a5;color:#b91c1c}
+button.rec-cut:hover:not(:disabled){background:#fecaca}
+button.stage:disabled{opacity:1;background:#fafafa;border-color:#ebebed;color:#b4b4bb;cursor:default}
+button.stage.ready{background:#18181b;border-color:#18181b;color:#fff;font-weight:600}
+button.stage.ready:hover:not(:disabled){background:#000}
+button.stage.staged{background:#dcfce7;border-color:#86efac;color:#15803d;font-weight:600}
+button.stage.staged:hover:not(:disabled){background:#fecaca;border-color:#fca5a5;color:#b91c1c}
+button.day-btn{min-width:66px}
+/* Filter chips read as a control, not another action button */
+button.filt{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;padding:6px 13px;
+  border:1px dashed #a1a1aa;border-radius:999px;background:#fff;color:#3f3f46;font-weight:500}
+button.filt:hover:not(:disabled){background:#f4f4f5;border-color:#71717a}
+button.filt .fdot{width:8px;height:8px;border-radius:50%;border:1.5px solid #a1a1aa;flex:none}
+button.filt.on{background:#18181b;border:1px solid #18181b;color:#fff;font-weight:600}
+button.filt.on .fdot{background:#4ade80;border-color:#4ade80}
+button.filt .fmut{opacity:.6;font-weight:400}
+button.filt:disabled{opacity:.5;cursor:default}
+[data-theme="dark"] button.filt{background:#1e1e22;border-color:#55555f;color:#d4d4d8}
+[data-theme="dark"] button.filt:hover:not(:disabled){background:#2a2a30}
+[data-theme="dark"] button.filt.on{background:#e8e8ea;border-color:#e8e8ea;color:#0f0f11}
+[data-theme="dark"] button.stage:disabled{background:#161619;border-color:#232329;color:#55555f}
+[data-theme="dark"] button.stage.ready{background:#e8e8ea;border-color:#e8e8ea;color:#0f0f11}
+[data-theme="dark"] button.stage.staged{background:rgba(34,197,94,.18);border-color:#166534;color:#4ade80}
+[data-theme="dark"] button.rec-raise{background:rgba(34,197,94,.18);border-color:#166534;color:#4ade80}
+[data-theme="dark"] button.rec-cut{background:rgba(239,68,68,.18);border-color:#7f1d1d;color:#f87171}
+/* Season strip */
+.season{display:flex;gap:1px;background:#e4e4e7;border:1px solid #e4e4e7;border-radius:9px;overflow:hidden;margin-bottom:14px;flex-wrap:wrap}
+.season .sm{background:#fff;padding:9px 12px;flex:1 1 130px;min-width:0}
+.season .sm.now{background:#f9fafb;box-shadow:inset 0 -3px 0 #18181b}
+.season .sm .mn{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#6b7280;font-weight:600}
+.season .sm .sv{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.season .sm .sd{font-size:11px;color:#6b7280}
+[data-theme="dark"] .season{background:#2a2a30;border-color:#2a2a30}
+[data-theme="dark"] .season .sm{background:#17171a}
+[data-theme="dark"] .season .sm.now{background:#1e1e22;box-shadow:inset 0 -3px 0 #e8e8ea}
+tr.row-surge>td:first-child{box-shadow:inset 3px 0 0 #d97706}
+[data-theme="dark"] .p-surge{background:rgba(245,158,11,.18);color:#fbbf24;border-color:#78350f}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:#e4e4e7;border:1px solid #e4e4e7;border-radius:9px;overflow:hidden;margin-bottom:14px}
+.cell{background:#fff;padding:11px 13px}
+.cell .k{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px}
+.cell .v{font-size:19px;font-weight:600;letter-spacing:-.02em}
+.cell .n{font-size:11px;color:#6b7280;margin-top:1px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#6b7280;font-weight:600;padding:8px;border-bottom:1px solid #e4e4e7;white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid #f4f4f5;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+th.r,td.r{text-align:right;font-variant-numeric:tabular-nums}
+tr.booked td{background:#fafafa;color:#a1a1aa}
+tr.clickable{cursor:pointer}
+tr.clickable:hover td{background:#f9fafb}
+/* Action cards sit directly on the page background, so they need to read as
+   surfaces in their own right rather than as a tint. */
+.act{background:#fff;border:1px solid #e4e4e7;border-left:3px solid #d4d4d8;
+  padding:12px 14px;margin-bottom:8px;border-radius:0 8px 8px 0;position:relative;
+  box-shadow:0 1px 2px rgba(16,16,20,.04)}
+.act.hi{border-left-color:#b91c1c;background:#fef7f7}
+.act.md{border-left-color:#d97706;background:#fffbf5}
+.act.lo{border-left-color:#a1a1aa}
+.act .t{font-weight:600;margin-bottom:2px;padding-right:26px}
+.act .w{color:#52525b;font-size:13px}
+.act .u{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.03em;font-weight:600;margin-bottom:4px}
+.act .do{margin-top:9px}
+.act .dis{position:absolute;top:8px;right:8px}
+.ctl{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;padding:14px;background:#fafafa;border:1px solid #e4e4e7;border-radius:9px;margin-bottom:12px}
+.chart{height:210px;position:relative;margin-top:6px}
+.err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:12px 14px;border-radius:9px;margin-bottom:11px;font-size:13px}
+.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:12px 14px;border-radius:9px;margin-bottom:11px;font-size:13px}
+.warnbox{background:#fffbeb;border:1px solid #fde68a;color:#92400e;padding:12px 14px;border-radius:9px;margin-bottom:11px;font-size:13px}
+.load{color:#6b7280;padding:36px 0;text-align:center}
+.hide{display:none}
+.note{background:#fff;border:1px solid #e4e4e7;border-radius:9px;padding:12px 14px;font-size:12.5px;color:#52525b;margin-top:14px}
+.card .note{background:#f9fafb}   /* inset when nested, surface when standalone */
+.ovr{background:#eef2ff;color:#3730a3;padding:1px 7px;border-radius:5px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%) translateY(12px);bottom:24px;z-index:80;
+  display:flex;align-items:center;gap:10px;background:#18181b;color:#f4f4f5;padding:10px 14px;border-radius:10px;
+  font-size:13px;box-shadow:0 8px 28px rgba(0,0,0,.3);opacity:0;visibility:hidden;transition:opacity .15s,transform .15s}
+#toast.on{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+#toast button{background:#f4f4f5;border-color:#f4f4f5;color:#18181b;font-weight:600}
+#toast button:hover{background:#fff}
+
+/* tooltips — rendered into a single fixed-position node on <body> so no
+   ancestor's overflow:hidden or stacking context can clip them */
+.tip{display:inline-flex;align-items:center;gap:3px;cursor:help;border-bottom:1px dotted #a1a1aa}
+.tip .i{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;
+  background:#e4e4e7;color:#52525b;font-size:9px;font-weight:700;font-style:normal;text-transform:none;letter-spacing:0;flex:none}
+.tip:hover .i,.tip:focus .i{background:#18181b;color:#fff}
+#tt{position:fixed;z-index:9999;width:300px;max-width:calc(100vw - 24px);
+  background:#18181b;color:#e4e4e7;padding:11px 13px;border-radius:9px;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:12.5px;font-weight:400;line-height:1.5;text-align:left;
+  white-space:normal;text-transform:none;letter-spacing:0;word-break:normal;
+  box-shadow:0 8px 28px rgba(0,0,0,.28);opacity:0;visibility:hidden;transition:opacity .12s;pointer-events:none}
+#tt.on{opacity:1;visibility:visible}
+#tt b{color:#fff;display:block;margin-bottom:4px;font-size:13px}
+#tt em{color:#a5b4fc;font-style:normal;display:block;margin-top:7px}
+
+/* ---------- status colour system ----------
+   green = ahead / healthy, amber = watch, red = behind / broken, grey = neutral */
+.s-good{background:#f0fdf4}.s-warn{background:#fffbeb}.s-bad{background:#fef2f2}.s-dead{background:#fafafa}
+.cell.s-good{box-shadow:inset 3px 0 0 #16a34a}
+.cell.s-warn{box-shadow:inset 3px 0 0 #d97706}
+.cell.s-bad{box-shadow:inset 3px 0 0 #dc2626}
+td.s-good{color:#15803d;font-weight:600}
+td.s-warn{color:#a16207;font-weight:600}
+td.s-bad{color:#b91c1c;font-weight:600}
+tr.row-bad>td:first-child{box-shadow:inset 3px 0 0 #dc2626}
+tr.row-warn>td:first-child{box-shadow:inset 3px 0 0 #d97706}
+tr.row-good>td:first-child{box-shadow:inset 3px 0 0 #16a34a}
+.bignum{font-variant-numeric:tabular-nums}
+
+/* ---------- responsive ---------- */
+/* ---------- sticky navigation ----------
+   The tab bar pins to the top so you can switch views from the bottom of a long
+   table. Table headers pin inside their own scroll region — a sticky header can
+   only stick to its nearest scrolling ancestor, so the region needs a height. */
+.bar{position:sticky;top:0;z-index:45;background:#f4f4f6;
+  padding:10px 0 10px;margin:0 0 14px;border-bottom:1px solid transparent}
+.bar.stuck{border-bottom-color:#e4e4e7;box-shadow:0 4px 12px -8px rgba(16,16,20,.35)}
+[data-theme="dark"] .bar{background:#0f0f11}
+[data-theme="dark"] .bar.stuck{border-bottom-color:#2a2a30}
+
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -2px}
+/* Long tables get their own bounded, scrollable region with a pinned header. */
+.scroll.tall{max-height:min(68vh,720px);overflow:auto;border:1px solid #e4e4e7;border-radius:9px}
+.scroll.tall thead th{position:sticky;top:0;z-index:20;background:#fff;
+  box-shadow:inset 0 -1px 0 #e4e4e7}
+[data-theme="dark"] .scroll.tall{border-color:#2a2a30}
+[data-theme="dark"] .scroll.tall thead th{background:#17171a;box-shadow:inset 0 -1px 0 #2a2a30}
+.scroll table{min-width:560px}
+.scroll.wide table{min-width:820px}
+/* Calendar: let headers wrap onto two lines instead of forcing wide columns */
+.scroll.cal table{min-width:600px;table-layout:fixed}
+.scroll.cal th{white-space:normal;line-height:1.25;vertical-align:bottom}
+.scroll.cal table{min-width:760px}
+.scroll.cal th:nth-child(1){width:14%}
+.scroll.cal th:nth-child(2),.scroll.cal th:nth-child(3),.scroll.cal th:nth-child(4),
+.scroll.cal th:nth-child(5),.scroll.cal th:nth-child(6),
+.scroll.cal th:nth-child(7),.scroll.cal th:nth-child(8){width:9.5%}
+.scroll.cal td{padding:8px 7px}
+.scroll.cal .tip{display:inline}
+.scroll.cal .tip .i{vertical-align:middle}
+
+@media (max-width:760px){
+  body{padding:14px 12px 150px;font-size:15px}
+  h1{font-size:19px}
+  .sub{font-size:12.5px;margin-bottom:14px}
+  .card{padding:14px;border-radius:10px}
+  .bar{gap:6px}
+  .bar button{flex:1 1 auto;min-width:calc(50% - 6px);text-align:center}
+  .bar #vcount,.bar #stamp{flex-basis:100%;margin-left:0!important;text-align:left}
+  .grid{grid-template-columns:1fr 1fr}
+  .cell .v{font-size:17px}
+  .ctl{gap:10px;padding:12px}
+  .ctl label.f{flex:1 1 calc(50% - 10px)}
+  .ctl input[type=number]{width:100%}
+  .ctl button{flex:1 1 100%}
+  .chead{gap:8px}
+  .chead h2{font-size:15px}
+  select{max-width:100%}
+  #tt{width:min(300px,calc(100vw - 24px))}
+  #tray{padding:12px;max-height:60vh}
+  .pend{flex-wrap:wrap}
+  .pend .chg{flex-basis:100%;font-size:12px;color:#6b7280}
+  .act .t{padding-right:30px}
+  th,td{padding:8px 7px}
+}
+@media (max-width:420px){
+  .grid{grid-template-columns:1fr}
+  .bar button{min-width:100%}
+}
+
+/* ---------- calendar on small screens ----------
+   A nine-column table can't be made readable at 390px however hard the widths
+   are fought. Below 760px each night becomes its own stacked card instead. */
+@media (max-width:760px){
+  .scroll.cal,.scroll.cal.tall{overflow:visible;max-height:none;border:none}
+  .scroll.tall{max-height:none;overflow:auto;border:none;border-radius:0}
+  .bar{padding:8px 0}
+  .scroll.cal table,.scroll.cal thead,.scroll.cal tbody,.scroll.cal tr,.scroll.cal td{display:block;width:auto;min-width:0}
+  .scroll.cal thead{display:none}
+  .scroll.cal tr{border:1px solid #e4e4e7;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff}
+  .scroll.cal tr.booked{background:#fafafa;opacity:.65}
+  .scroll.cal tr.row-surge{border-left:3px solid #d97706}
+  .scroll.cal td{border:none;padding:3px 0;text-align:left!important;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .scroll.cal td:first-child{font-weight:700;font-size:15px;padding-bottom:7px;margin-bottom:5px;border-bottom:1px solid #f4f4f5}
+  .scroll.cal td::before{content:attr(data-l);font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#6b7280;font-weight:600;flex:none}
+  .scroll.cal td:first-child::before{content:none}
+  .scroll.cal td:empty{display:none}
+  .scroll.cal input[type=number]{width:96px}
+  [data-theme="dark"] .scroll.cal tr{background:#17171a;border-color:#2a2a30}
+  [data-theme="dark"] .scroll.cal tr.booked{background:#141417}
+  [data-theme="dark"] .scroll.cal td:first-child{border-bottom-color:#212127}
+}
+
+/* ---------- dark theme ----------
+   Applied via [data-theme="dark"] on <html>, so every rule below outranks the
+   light defaults above without needing to touch them. */
+html[data-theme="dark"]{color-scheme:dark}
+[data-theme="dark"] body{background:#0f0f11;color:#e8e8ea}
+[data-theme="dark"] .muted,[data-theme="dark"] .sub,[data-theme="dark"] h3,
+[data-theme="dark"] .cell .k,[data-theme="dark"] .cell .n,[data-theme="dark"] th,
+[data-theme="dark"] .act .u,[data-theme="dark"] .pend .u,[data-theme="dark"] label.f{color:#9a9aa4}
+[data-theme="dark"] .load{color:#9a9aa4}
+
+[data-theme="dark"] .card{background:#17171a;border-color:#2a2a30;box-shadow:none}
+
+[data-theme="dark"] button{background:#1e1e22;border-color:#35353d;color:#d4d4d8}
+[data-theme="dark"] button:hover:not(:disabled){background:#2a2a30}
+[data-theme="dark"] button.on{background:#e8e8ea;border-color:#e8e8ea;color:#0f0f11}
+[data-theme="dark"] button.go{background:#15803d;border-color:#15803d;color:#fff}
+[data-theme="dark"] button.go:hover:not(:disabled){background:#16a34a}
+[data-theme="dark"] button.warn{color:#f87171;border-color:#7f1d1d;background:#1e1e22}
+[data-theme="dark"] button.x{background:none;border:none;color:#6b6b76}
+[data-theme="dark"] button.x:hover{background:#2a2a30;color:#e8e8ea}
+[data-theme="dark"] select,[data-theme="dark"] input[type=number]{background:#1e1e22;border-color:#35353d;color:#e8e8ea}
+[data-theme="dark"] input:focus{outline-color:#e8e8ea}
+
+[data-theme="dark"] .grid{background:#2a2a30;border-color:#2a2a30}
+[data-theme="dark"] .cell{background:#17171a}
+[data-theme="dark"] th{border-bottom-color:#2a2a30}
+[data-theme="dark"] td{border-bottom-color:#212127}
+[data-theme="dark"] tr.booked td{background:#141417;color:#6b6b76}
+[data-theme="dark"] tr.clickable:hover td{background:#1e1e22}
+
+[data-theme="dark"] .ctl{background:#1b1b1f;border-color:#2a2a30}
+[data-theme="dark"] .note{background:#17171a;border-color:#2a2a30;color:#a8a8b2}
+[data-theme="dark"] .card .note{background:#1b1b1f}
+[data-theme="dark"] .act{background:#17171a;border-color:#2a2a30;border-left-color:#35353d;box-shadow:none}
+[data-theme="dark"] .act .w{color:#a8a8b2}
+[data-theme="dark"] .act.hi{background:#1f1416;border-left-color:#dc2626}
+[data-theme="dark"] .act.md{background:#1f1a12;border-left-color:#d97706}
+[data-theme="dark"] .err{background:#1f1416;border-color:#7f1d1d;color:#fca5a5}
+[data-theme="dark"] .ok{background:#121f17;border-color:#14532d;color:#86efac}
+[data-theme="dark"] .warnbox{background:#1f1a12;border-color:#78350f;color:#fcd34d}
+
+[data-theme="dark"] .p-raise{background:rgba(34,197,94,.16);color:#4ade80}
+[data-theme="dark"] .p-cut{background:rgba(239,68,68,.16);color:#f87171}
+[data-theme="dark"] .p-hold{background:#2a2a30;color:#a8a8b2}
+[data-theme="dark"] .p-watch{background:rgba(245,158,11,.16);color:#fbbf24}
+[data-theme="dark"] .p-broke{background:#7f1d1d;color:#fff}
+[data-theme="dark"] .ovr{background:rgba(99,102,241,.18);color:#a5b4fc}
+
+[data-theme="dark"] .up{color:#4ade80}[data-theme="dark"] .down{color:#f87171}
+[data-theme="dark"] .s-good{background:rgba(34,197,94,.10)}
+[data-theme="dark"] .s-warn{background:rgba(245,158,11,.10)}
+[data-theme="dark"] .s-bad{background:rgba(239,68,68,.10)}
+[data-theme="dark"] .s-dead{background:#1b1b1f}
+[data-theme="dark"] td.s-good{color:#4ade80}
+[data-theme="dark"] td.s-warn{color:#fbbf24}
+[data-theme="dark"] td.s-bad{color:#f87171}
+
+[data-theme="dark"] .tip{border-bottom-color:#6b6b76}
+[data-theme="dark"] .tip .i{background:#2a2a30;color:#a8a8b2}
+[data-theme="dark"] .tip:hover .i,[data-theme="dark"] .tip:focus .i{background:#e8e8ea;color:#0f0f11}
+[data-theme="dark"] #tt{background:#2a2a30;border:1px solid #3f3f46}
+
+[data-theme="dark"] #tray{background:#17171a;border-top-color:#2a2a30;box-shadow:0 -4px 24px rgba(0,0,0,.5)}
+[data-theme="dark"] .pend{background:#1b1b1f;border-color:#2a2a30}
+
+#tray.min{max-height:none}
+#tray.min #traybody{display:none}
+#tray.min .trayhead{margin-bottom:0}
+#tray{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #d4d4d8;box-shadow:0 -4px 20px rgba(0,0,0,.08);padding:14px 20px;z-index:50;max-height:52vh;overflow:auto}
+#tray.hide{display:none}
+.trayhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.pend{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border:1px solid #e4e4e7;border-radius:8px;margin-bottom:6px;font-size:13px;background:#fafafa}
+.pend .d{flex:1;min-width:0}
+.pend .u{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.03em;font-weight:600}
+.chg{font-variant-numeric:tabular-nums;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<h1>Revenue Manager</h1>
+<div class="sub">Occupancy vs. market across the booking window &middot; live from PriceLabs</div>
+
+<div class="bar">
+  <button id="tab-portfolio" class="on">Portfolio</button>
+  <button id="tab-actions">This week's moves</button>
+  <button id="tab-units">By unit</button>
+  <button id="tab-cal">Calendar &amp; pricing</button>
+  <button id="tab-log">Change log</button>
+  <button id="tab-config">Config</button>
+  <button id="theme" title="Toggle dark mode" style="margin-left:auto">Dark</button>
+  <span class="muted tiny" id="vcount"></span>
+  <span class="muted tiny" id="stamp"></span>
+</div>
+
+<div id="errs"></div>
+<div id="loading" class="load">Pulling listings, pace, calendars and overrides&hellip;</div>
+
+<div id="v-portfolio" class="hide"></div>
+<div id="v-actions" class="hide"></div>
+<div id="v-units" class="hide"></div>
+<div id="v-cal" class="hide"></div>
+<div id="v-log" class="hide"></div>
+<div id="v-config" class="hide"></div>
+
+<div id="tt"></div>
+
+<div id="tray" class="hide">
+  <div class="trayhead">
+    <button id="traytoggle" class="stage" title="Collapse the tray">&#9660;</button>
+    <strong id="traycount"></strong>
+    <div style="display:flex;gap:8px;margin-left:auto">
+      <button id="clearall" class="warn">Discard all</button>
+      <button id="pushall" class="go">Push to PriceLabs</button>
+    </div></div>
+  <div id="traybody"><div id="traylist"></div><div id="trayresult"></div></div>
+</div>
+
+<script>
+/* The PriceLabs connector's tool prefix. This is per-account: every operator
+   who connects PriceLabs gets their own server id, so it has to be settable
+   rather than baked in, or a shared copy of this dashboard calls nothing. */
+const PL_DEFAULT='mcp__PRICELABS_CONNECTOR_ID__';
+let PL=localStorage.getItem('rm_connector')||PL_DEFAULT;
+const setConnector=id=>{
+  id=String(id||'').trim();
+  if(!id) return;
+  if(!id.startsWith('mcp__')) id='mcp__'+id;
+  if(!id.endsWith('__')) id=id+'__';
+  PL=id; localStorage.setItem('rm_connector',PL); main();
+};
+const errs=[];
+let UNITS=[], PENDING=[], pid=0, NUDGE_HTML='', CAL_SEL='', STALE=null, LOADED_AT=null;
+/* How far ahead to fetch, and how much of it the calendar shows. Surge dates
+   like late December sit well outside a 90-day window. */
+let CAL_HORIZON=365, CAL_DAYS=45;   /* seeded from CFG once it loads */
+let HIDDEN=[], LOG=[], DISMISSED={};
+try{HIDDEN=JSON.parse(localStorage.getItem('rm_hidden')||'[]')}catch(e){HIDDEN=[]}
+try{LOG=JSON.parse(localStorage.getItem('rm_log')||'[]')}catch(e){LOG=[]}
+try{DISMISSED=JSON.parse(localStorage.getItem('rm_dismissed')||'{}')}catch(e){DISMISSED={}}
+
+const vis=()=>UNITS.filter(u=>!HIDDEN.includes(u.id));
+
+/* "Only show what needs action" — kept per tab, since you might want the
+   calendar filtered while still scanning the whole portfolio. */
+let ONLY={portfolio:false,actions:false,units:false,cal:false};
+try{ ONLY={...ONLY,...JSON.parse(localStorage.getItem('rm_only')||'{}')}; }catch(e){}
+function toggleOnly(tab){
+  ONLY[tab]=!ONLY[tab];
+  localStorage.setItem('rm_only',JSON.stringify(ONLY));
+  renderAll();
+}
+/* How many live actions does this property have right now? */
+const liveCount=u=>actionsFor(u).filter(a=>!actedOn(a.key)&&!isDismissed(a.key)).length;
+/* Does this night have anything to change? */
+function nightActionable(u,d,orphanSet){
+  if(d.booking_status||d.unbookable) return false;
+  const rp=recPrice(u,d,orphanSet);
+  if(rp&&!rp.already) return true;
+  const rm=recMinStay(u,d,orphanSet);
+  const cur=(u.ovr[d.date]&&u.ovr[d.date].min_stay!=null)?Number(u.ovr[d.date].min_stay):(d.min_stay??1);
+  return !!(rm&&rm.n!==cur);
+}
+/* Label the action, not the state — "Show all" beside "Expand all" reads like
+   another expand control and vanishes into a row of grey buttons. */
+function onlyToggle(tab,shown,total,noun){
+  const on=ONLY[tab], hidden=total-shown;
+  return `<button class="filt${on?' on':''}" onclick="toggleOnly('${tab}')"
+    title="${on?`Filtered to the ${shown} ${noun} with something to change. ${hidden} hidden — click to show everything again.`
+            :`Hide the ${noun} that are already where they should be.`}">
+    <span class="fdot"></span>${on?`Needs action only · ${shown}`:`Hide on-target ${noun}`}${on&&hidden?` <span class="fmut">${hidden} hidden</span>`:''}</button>`;
+}
+const saveH=()=>localStorage.setItem('rm_hidden',JSON.stringify(HIDDEN));
+const saveL=()=>localStorage.setItem('rm_log',JSON.stringify(LOG.slice(0,300)));
+const saveD=()=>localStorage.setItem('rm_dismissed',JSON.stringify(DISMISSED));
+/* Anchor pins. PriceLabs recomputes `uncustomized_price` on every refresh, and
+   on nights carrying your override it can come back lower than it was when you
+   pushed. Measuring the next recommendation off the new, lower figure walks the
+   price down every push → refresh cycle. So when you push a night we remember
+   the anchor it was priced from, and keep using it while your override stands. */
+let PINS={};
+try{PINS=JSON.parse(localStorage.getItem('rm_pins')||'{}')}catch(e){PINS={}}
+const saveP=()=>{ try{localStorage.setItem('rm_pins',JSON.stringify(PINS))}catch(e){} };
+function addPins(uid,list){
+  if(!uid||!list||!list.length) return;
+  PINS[uid]=PINS[uid]||{};
+  list.forEach(x=>{ if(x&&x.date&&x.anchor>0) PINS[uid][x.date]={...x,ts:Date.now()}; });
+  saveP();
+}
+
+/* PriceLabs' MCP is in beta and does go down. Retry transient failures with
+   backoff before giving up — a single blip shouldn't blank the dashboard. */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const TRANSIENT=/not responding|timeout|timed out|network|502|503|504|econn|fetch failed|rate|429/i;
+
+/* PriceLabs allows 60 requests a minute. A 20-property portfolio needs ~60 on
+   the fast path alone and another ~40 to enrich, so requests are metered here
+   rather than discovering the ceiling as a wall of 429s. */
+const RATE_MAX=50, RATE_WINDOW=60000;
+let rateLog=[];
+async function rateGate(){
+  for(;;){
+    const now=Date.now();
+    rateLog=rateLog.filter(t=>now-t<RATE_WINDOW);
+    if(rateLog.length<RATE_MAX){ rateLog.push(now); return; }
+    await sleep(Math.max(250,RATE_WINDOW-(now-rateLog[0])+50));
+  }
+}
+
+async function call(tool,args,tries=3){
+  await rateGate();
+  let last;
+  for(let i=0;i<tries;i++){
+    try{
+      const r=await window.cowork.callMcpTool(PL+tool,args);
+      if(r.isError) throw new Error(r.content?.[0]?.text||'call failed');
+      let d=r.structuredContent;
+      if(!d){ try{d=JSON.parse(r.content[0].text)}catch(e){return {}} }
+      return d;
+    }catch(e){
+      last=e;
+      if(!TRANSIENT.test(e.message||'')||i===tries-1) throw e;
+      await sleep(800*Math.pow(2,i));      // 0.8s, 1.6s
+      await rateGate();
+    }
+  }
+  throw last;
+}
+
+/* Last good snapshot, so an outage shows stale data rather than nothing. */
+const CACHE_KEY='rm_cache';
+/* Only the day fields the dashboard actually reads. The raw PriceLabs response
+   carries twice as many, and at 20 properties × 365 nights the full payload
+   comes to ~2.9MB against a ~5MB localStorage quota. */
+const CACHE_DAY_FIELDS=['date','price','uncustomized_price','user_price','min_stay',
+  'booking_status','unbookable','demand_desc','eff','anchor','vsAnchor'];
+function trimUnit(u){
+  const {_open,_acts,days,...rest}=u;
+  return {...rest,days:(days||[]).map(d=>{
+    const o={}; CACHE_DAY_FIELDS.forEach(k=>{ if(d[k]!==undefined) o[k]=d[k]; }); return o;
+  })};
+}
+function saveCache(days){
+  const horizon=days||CAL_HORIZON;
+  try{
+    const cut=Date.now()+horizon*864e5;
+    const payload={ts:Date.now(),horizon,units:UNITS.map(u=>{
+      const t=trimUnit(u);
+      t.days=t.days.filter(d=>new Date(d.date+'T12:00:00')<=cut);
+      return t;
+    })};
+    localStorage.setItem(CACHE_KEY,JSON.stringify(payload));
+  }catch(e){
+    // Quota exceeded — keep a shorter window rather than losing the fallback entirely.
+    if(horizon>120){ saveCache(120); return; }
+    if(horizon>60){ saveCache(60); return; }
+    try{ localStorage.removeItem(CACHE_KEY); }catch(e2){}
+  }
+}
+function loadCache(){
+  try{
+    const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');
+    if(!c||!Array.isArray(c.units)||!c.units.length) return null;
+    c.units.forEach(u=>{u._open={};u._acts=null});
+    return c;
+  }catch(e){ return null }
+}
+const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(n)?null:n};
+const money=n=>'$'+Math.round(n).toLocaleString();
+const iso=d=>d.toISOString().slice(0,10);
+const fmtD=s=>new Date(s+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const daysAgo=ts=>Math.max(0,Math.round((Date.now()-ts)/864e5));
+const dayName=ts=>new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
+/* ---------- tooltips ---------- */
+const T={
+  occ:['Your occupancy','The share of nights already booked in this forward window. Cumulative, so "0–30 days" means the whole next 30 nights.','Read it against the market number beside it, never on its own. 40% is excellent in a dead season and alarming in peak.'],
+  mkt:['Market occupancy','The same figure for your PriceLabs comp set — similar properties in your area, over the same window.','This is the benchmark. It moves with season and events, which is why a fixed occupancy target would mislead you.'],
+  gap:['Gap','Your occupancy minus the market\'s, in percentage points.','This drives every recommendation. Inside ±8 you\'re priced right. Behind means cut, ahead means you left money on the table — you filled by being cheapest, not most wanted.'],
+  mpi:['Market index (MPI)','How many times the market\'s occupancy you\'re capturing. 1.0× is exactly average.','Above 1.5× while sitting at your price floor is the classic underpricing signature — you\'re winning on price, not desirability. Below 1.0× means something is losing you bookings.'],
+  adr:['ADR','Average nightly rate actually achieved on booked nights, excluding fees.','Rising occupancy with falling ADR is buying volume with rate. Watch them together — either alone can flatter you.'],
+  base:['Base price','Your anchor rate. PriceLabs scales every night up or down from here by season, demand and day of week.','Change this to move the whole calendar. Use date overrides for individual nights instead.'],
+  min:['Minimum price (floor)','The lowest PriceLabs may ever go, no matter how soft demand gets.','Your safety net — but if most open nights sit exactly here, the floor is setting your prices instead of the algorithm. Raise it and watch pace for a week.'],
+  max:['Maximum price (ceiling)','The highest PriceLabs may go. Blank means no cap.','A cap set too low silently throttles your best dates. Leave it off unless you have a real reason.'],
+  open:['Open nights','Unbooked, bookable nights in the next 90 days.','Your remaining inventory. Every one that passes unsold earns exactly nothing — which is why deep discounts beat empty nights near the date.'],
+  floorN:['Nights at floor','How many open nights are priced at your minimum.','More than half means the floor is binding. PriceLabs wants to go lower and can\'t, or you\'ve set the floor above where its logic lands.'],
+  orph:['Orphan gaps','1–2 night holes between bookings.','Nearly unsellable at normal rates and minimums — most guests want longer stays. Price them 20–30% down with a 1-night minimum. Anything beats zero.'],
+  sync:['Price sync','Whether PriceLabs is actually pushing prices to your channels.','If this is off, nothing else here matters — you\'re hand-pricing. Fix it first.'],
+  plprice:['Live price','The final rate for this night after everything — PriceLabs\' seasonality and demand adjustments <em>and</em> any override you\'ve set. Once you override a night, this shows your number, not theirs.','This is what a guest pays. It reflects PriceLabs\' last refresh, so a change you just pushed may not appear until they recompute.'],
+  channel:['On channel','The last price PriceLabs saw live on your booking channel.','When this trails the Live price, the change hasn\'t reached Airbnb or Vrbo yet — either sync hasn\'t run or it\'s off. A persistent lag is worth investigating.'],
+  raw:['PriceLabs base','PriceLabs\' own number for this night before their adjustments (last-minute discounts, far-out premiums, occupancy tweaks) and before anything you\'ve set. Your overrides never move it.','This is the anchor every recommendation is measured against, which is why it matters. Because your own changes can\'t shift it, targeting a position relative to this figure stays stable no matter how many times you push.'],
+  ovr:['Your override','A date-specific price you set, which wins over everything PriceLabs calculates.','If a value shows here, your change is committed in PriceLabs — even when the calendar column beside it hasn\'t caught up yet.'],
+  ovrMs:['Minimum stay','PriceLabs\' figure for this night in grey. If you\'ve set your own override it shows in blue, with theirs after the slash.','Amber means your override is longer than PriceLabs recommends — that usually means you\'re turning away bookings you could take. An empty blue value just means you haven\'t overridden this date.'],
+  pills:['Date &amp; flags','Small letters after the date flag what\'s special about that night: <b>S</b> surge (PriceLabs sees a market-wide price or occupancy spike), <b>H</b> high demand, <b>G</b> good demand, <b>O</b> orphan (a 1–2 night gap between bookings), <b>FLR</b> next to a price means it\'s sitting on your floor.','Hover any flag for its specific meaning. S and O are the two worth acting on — surges want a premium, orphans want a discount and a 1-night minimum.'],
+  priceRec:['Recommended price','This dashboard\'s suggestion for the night: your current effective rate adjusted by the window\'s pace gap, plus a surge premium where one applies, then clamped to your floor and ceiling. Orphan nights get the orphan discount instead.','Grey means nothing to change. A button means it differs — hover for the exact reasoning, click to fill the input. Every number here comes from your Config tab, so if you disagree with a recommendation, change the rule rather than the night.'],
+  alos:['Average length of stay','Mean nights per booking, from your actual reservation history.','Short stays cost more per booking in turnover and cleaning. A rising minimum stay lifts this but costs occupancy — worth it only if RevPAN improves. Watch the median alongside the mean; one 30-night booking can flatter the average badly.'],
+  bwin:['Booking window','Mean days between a booking being made and the guest checking in.','This is what makes a forward window actionable or not. If guests book five days out, a soft 60-day window is normal rather than a warning. Same-day bookings are a sign your last-minute pricing is doing work.'],
+  revpanIdx:['RevPAN vs market','Your revenue per available night divided by the market\'s. 1.00 means you are matching the comp set; 0.61 means you are earning 39% less per available night than a typical comparable listing.','This is the closest thing to a single score for the property, and the metric your own playbook calls winning. Below 1.00, check which lever is behind — occupancy or rate — because the fix is different for each.'],
+  revpan:['RevPAN','Revenue per available night — occupancy multiplied by rate. The composite outcome, and the only figure that can\'t be flattered by trading one against the other.','Pace tells you what to change; this tells you whether the last round of changes worked. Rising occupancy with falling RevPAN means you bought volume too cheaply. PriceLabs doesn\'t publish market RevPAN, so this compares you to your own trailing period rather than to the comp set.'],
+  msRec:['Recommended minimum','This dashboard\'s own suggestion, from four rules: orphan gaps get 1 night, dates inside 14 days get at most 2, windows lagging market by 8+ points get at most 2, and strong weekends get at least 2. Otherwise PriceLabs\' figure stands.','A number in grey means nothing to change. A button means it differs — hover it for the reasoning, click to fill the input. This is arithmetic on your own rules, not a market forecast.'],
+  pickup:['Bookings last 30 days','Distinct reservations picked up in the past 30 days.','Pace of demand rather than a snapshot. Zero over 30 days on a live listing is a problem no price change alone will fix.'],
+  refresh:['Last refreshed','When PriceLabs last recomputed this listing\'s calendar.','Prices and overrides you push may not appear in the calendar until this updates. If it looks stale, run Recompute pricing.']
+};
+function tip(k,label){
+  const t=T[k]; if(!t) return esc(label||k);
+  return `<span class="tip" data-tip="${k}" tabindex="0">${label||t[0]}<i class="i">?</i></span>`;
+}
+
+const TT=document.getElementById('tt');
+function showTip(el){
+  const t=T[el.dataset.tip]; if(!t) return;
+  TT.innerHTML=`<b>${t[0]}</b>${t[1]}<em>${t[2]}</em>`;   // tooltip copy may carry <b>/<em>
+  TT.classList.add('on');
+  TT.style.left='0px'; TT.style.top='0px';           // measure at a known origin
+  const r=el.getBoundingClientRect(), b=TT.getBoundingClientRect();
+  let left=r.left, top=r.top-b.height-8;
+  if(top<8) top=r.bottom+8;                           // flip below when there's no room above
+  left=Math.min(Math.max(8,left), window.innerWidth-b.width-8);
+  TT.style.left=left+'px'; TT.style.top=top+'px';
+}
+const hideTip=()=>TT.classList.remove('on');
+document.addEventListener('mouseover',e=>{const el=e.target.closest('[data-tip]'); if(el) showTip(el);});
+document.addEventListener('mouseout',e=>{if(e.target.closest('[data-tip]')) hideTip();});
+document.addEventListener('focusin',e=>{const el=e.target.closest('[data-tip]'); if(el) showTip(el);});
+document.addEventListener('focusout',hideTip);
+window.addEventListener('scroll',hideTip,true);
+document.addEventListener('scroll',hideTip,true);
+
+/* ---------- configuration ----------
+   Every number the engine uses lives here so it can be tuned per operator and
+   per market without editing code. Defaults match revenue-rules.md. */
+const CFG_DEFAULTS={
+  profileName:'Balanced · 0–90 day window',
+  marketNotes:'Seasonal desert market: compressed high season, deep summer trough. Late April is the cliff.',
+  windows:[
+    {key:'w1',label:'0–30 days',from:0,to:30,speed:'Act this week',mode:'act'},
+    {key:'w2',label:'31–60 days',from:30,to:60,speed:'Adjust, re-check next week',mode:'act'},
+    {key:'w3',label:'61–90 days',from:60,to:90,speed:'Watch only',mode:'watch'}
+  ],
+  gapHold:8, gapDeep:15, gapStructural:20,
+  cutNearModest:10, cutNearDeep:15, cutFarModest:6, cutFarDeep:10,
+  raiseModest:6, raiseNearStrong:12, raiseFarStrong:8, cutStructural:12,
+  orphanMaxNights:2, orphanDiscount:25, orphanMinStay:1,
+  msLastMinuteDays:14, msLastMinuteCap:2, msLagCap:2, msWeekendMin:2,
+  floorBindPct:50, baseDriftPct:10, coolDays:7, dismissDays:30,
+  mpiAhead:1.2, mpiFarAhead:1.8, mpiBehind:0.8,
+  surgeUpliftPct:15,
+  lowDemandPct:35, lowDemandCutCap:5,
+  revpanBrakeCap:5, revpanBoostPct:5,
+  autoCollapseAbove:3, calHorizon:365, calDays:45, loadConcurrency:4,
+  stackWarnPct:15, seasonalWindows:true,
+  /* Market profiles. The first entry is the fallback; later entries win when a
+     property's city or state matches. Only keys present in `overrides` differ. */
+  profiles:[
+    {id:'default',name:'Default',match:{cities:[],states:[]},notes:'Applies to any property no other profile claims.',overrides:{}},
+    {id:'desert',name:'Desert seasonal',match:{cities:['Scottsdale','Phoenix','Palm Desert','Palm Springs','Indio','La Quinta'],states:['AZ','Arizona'],},
+     notes:'Compressed high season, deep summer trough, very short booking window in summer. Late April is the cliff.',
+     overrides:{}}
+  ]
+};
+/* DFD points PriceLabs actually reports, so derived windows snap to these. */
+const DFD_POINTS=[7,15,30,45,60,90,120];
+const snapDFD=n=>DFD_POINTS.reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a);
+let CFG=structuredClone(CFG_DEFAULTS);
+try{
+  const saved=JSON.parse(localStorage.getItem('rm_cfg')||'null');
+  if(saved&&typeof saved==='object') CFG={...CFG,...saved};
+}catch(e){}
+const saveCfg=()=>localStorage.setItem('rm_cfg',JSON.stringify(CFG));
+CAL_HORIZON=CFG.calHorizon; CAL_DAYS=CFG.calDays;
+if(!Array.isArray(CFG.profiles)||!CFG.profiles.length) CFG.profiles=structuredClone(CFG_DEFAULTS.profiles);
+
+/* Which profile claims this property? Last matching wins; 'default' is fallback. */
+function profileFor(l){
+  const city=(l.city_name||'').trim().toLowerCase();
+  const st=(l.state||'').trim().toLowerCase();
+  let hit=CFG.profiles.find(p=>p.id==='default')||CFG.profiles[0];
+  CFG.profiles.forEach(p=>{
+    if(p.id==='default')return;
+    const m=p.match||{};
+    const c=(m.cities||[]).some(x=>String(x).trim().toLowerCase()===city);
+    const s=(m.states||[]).some(x=>String(x).trim().toLowerCase()===st);
+    if(c||s) hit=p;
+  });
+  return hit;
+}
+/* Effective config for a property: base values with its profile's overrides on top. */
+function cfgFor(u){
+  const p=u&&u.profile;
+  return p&&p.overrides&&Object.keys(p.overrides).length ? {...CFG,...p.overrides} : CFG;
+}
+
+/* Seasonal booking windows, derived from PriceLabs' own per-month observation
+   of how far ahead this market books. Snapped to the days-from-today points
+   PriceLabs actually reports occupancy for. */
+function deriveWindows(bookMax){
+  if(!bookMax||!isFinite(bookMax)) return null;
+  const a=snapDFD(Math.min(45,Math.max(14,Math.round(bookMax*2))));
+  const b=snapDFD(Math.min(90,Math.max(a+15,a*2)));
+  const c=snapDFD(Math.min(120,Math.max(b+30,b*2)));
+  return [
+    {key:'w1',label:`0–${a} days`,from:0,to:a,speed:'Act this week',mode:'act'},
+    {key:'w2',label:`${a}–${b} days`,from:a,to:b,speed:'Adjust, re-check next week',mode:'act'},
+    {key:'w3',label:`${b}–${c} days`,from:b,to:c,speed:'Watch only',mode:'watch'}
+  ];
+}
+/* Windows in force for a property: its own edit, else derived, else config. */
+function windowsFor(u){
+  const c=cfgFor(u);
+  if(u&&u.winOverride) return u.winOverride;
+  if(u&&c.seasonalWindows&&u.derivedWindows) return u.derivedWindows;
+  return c.windows;
+}
+const WINDOWS=u=>windowsFor(u);
+
+/* Field definitions drive the config screen — label, help text, group. */
+const CFG_FIELDS=[
+  ['Pace thresholds', [
+    ['gapHold','Hold band (± points)','Inside this many points of market, do nothing. The single most important number here — widen it to act less often, narrow it to act more.'],
+    ['gapDeep','Deep-action threshold','Gap beyond which a cut or raise becomes aggressive rather than modest.'],
+    ['gapStructural','Structural threshold (watch windows)','In watch-only windows, a gap worse than this stops being a timing problem and becomes a base-price problem.']
+  ]],
+  ['Rate moves (%)', [
+    ['cutNearModest','Near-window modest cut','Applied when the near window lags market by more than the hold band.'],
+    ['cutNearDeep','Near-window deep cut','Applied when the near window lags badly. Perishable inventory justifies going harder.'],
+    ['cutFarModest','Far-window modest cut','Smaller because there is still time for demand to arrive.'],
+    ['cutFarDeep','Far-window deep cut','For far windows lagging badly.'],
+    ['raiseModest','Modest raise','When you are comfortably ahead of market.'],
+    ['raiseNearStrong','Near-window strong raise','When you are far ahead near-in — you priced too low earlier.'],
+    ['raiseFarStrong','Far-window strong raise','Same idea further out, applied more cautiously.'],
+    ['cutStructural','Structural base cut','Suggested base-price reduction when a watch window is badly behind.']
+  ]],
+  ['Orphan nights', [
+    ['orphanMaxNights','Max gap length counted as orphan','A gap this many nights or shorter is treated as near-unsellable at normal rates.'],
+    ['orphanDiscount','Orphan discount (%)','How far below the current rate to price an orphan night.'],
+    ['orphanMinStay','Orphan minimum stay','Almost always 1 — a longer minimum guarantees the gap stays empty.']
+  ]],
+  ['Minimum stay rules', [
+    ['msLastMinuteDays','Last-minute window (days)','Inside this many days, cap the minimum stay. Late bookers travel short.'],
+    ['msLastMinuteCap','Last-minute cap (nights)','The cap applied inside that window.'],
+    ['msLagCap','Cap when lagging market','Shorten minimums before cutting price — minimums block bookings discounts cannot win back.'],
+    ['msWeekendMin','Weekend minimum when strong','Stops a single Saturday booking stranding the Friday beside it.']
+  ]],
+  ['Signals', [
+    ['floorBindPct','Floor-binding threshold (%)','When more than this share of open nights sit at your minimum, the floor is setting your price rather than the algorithm.'],
+    ['baseDriftPct','Base price drift (%)','How far your base can sit from PriceLabs\' recommendation before it is flagged.'],
+    ['mpiAhead','Market index — ahead','Above this, you are outpacing the market.'],
+    ['mpiFarAhead','Market index — far ahead','Above this, strong pace usually means underpricing rather than desirability.'],
+    ['mpiBehind','Market index — behind','Below this, something is losing you bookings.'],
+    ['stackWarnPct','Stacked-discount warning (%)','Warn when PriceLabs is already discounting a night by at least this much and you are about to cut it further.'],
+    ['lowDemandPct','Low-demand threshold (%)','Below this market occupancy, the market itself is quiet. Discounting into it wins share at best and rarely creates bookings.'],
+    ['lowDemandCutCap','Cut cap in low demand (%)','The deepest cut allowed when market occupancy is below the threshold. Protects rate in months that were never going to fill.'],
+    ['revpanBrakeCap','RevPAN brake — cut cap (%)','When RevPAN is below market and your rate is already below market too, price is not what is losing you money. Cuts are held to this.'],
+    ['revpanBoostPct','RevPAN boost on raises (%)','Extra percentage added to a raise when occupancy leads the market but RevPAN does not — the underpricing signature.'],
+    ['surgeUpliftPct','Surge uplift (%)','Extra premium suggested on nights PriceLabs flags as a market surge.']
+  ]],
+  ['Behaviour', [
+    ['coolDays','Pause after pushing (days)','How long a pushed change hides its own recommendation so you can see whether pace responds.'],
+    ['dismissDays','Dismissal length (days)','How long a dismissed card stays hidden.'],
+    ['autoCollapseAbove','Auto-collapse above N properties','Unit cards start collapsed once the portfolio is larger than this.'],
+    ['calHorizon','Data horizon (days)','How far ahead to fetch pricing and overrides. Longer means slower loads but reaches distant surge dates.'],
+    ['calDays','Calendar default (nights)','How many nights the calendar shows before you change it.'],
+    ['loadConcurrency','Parallel property loads','How many properties to fetch at once. Higher is faster but risks PriceLabs rate limits (60 requests/minute).']
+  ]]
+];
+
+function decide(win,gap,C,wins,mkOcc,rev){
+  C=C||CFG;
+  const w=(wins||C.windows).find(x=>x.key===win)||{};
+  /* rev = {idx, adrBelow} — RevPAN against the market, and whether your rate is
+     already under the comp set. Pace still decides direction; this stops the
+     engine recommending a move that works against the scorecard. */
+  const R = rev||{};
+  const revAdjust = d => {
+    if(!d.pct||R.idx==null) return d;
+    if(d.pct<0 && R.idx<1 && R.adrBelow){
+      const cap=Math.min(Math.abs(d.pct),C.revpanBrakeCap);
+      return {...d, pct:-cap, range:cap+'%', braked:true,
+        why:`RevPAN is ${(R.idx).toFixed(2)}× the market and your rate already sits below the comp set, so price isn't what's costing you here — cutting further would deepen the revenue gap, not close it. `+
+            `Cut held to ${cap}%. Look at the listing itself: photos, reviews, minimum stays, amenities.`};
+    }
+    if(d.pct>0 && R.idx<1){
+      const boosted=d.pct+C.revpanBoostPct;
+      return {...d, pct:boosted, range:boosted+'%', boosted:true,
+        why:`${d.why} You're also earning ${(R.idx).toFixed(2)}× the market's RevPAN despite leading on occupancy — the classic underpricing signature — so this is pushed to ${boosted}%.`};
+    }
+    if(R.idx>=1 && Math.abs(d.pct)<=C.gapHold){
+      return {...d, why:`${d.why} RevPAN is already at ${(R.idx).toFixed(2)}× the market, so there's no urgency — this is a refinement, not a fix.`};
+    }
+    return d;
+  };
+  // A thin market is a different situation from losing share in a busy one.
+  // Cutting into it protects nothing and costs rate, so cap how far it can go.
+  const thin = mkOcc!=null && mkOcc < C.lowDemandPct;
+  const cap0 = d => {
+    if(!thin || !d.pct || d.pct>=0) return d;
+    if(Math.abs(d.pct) <= C.lowDemandCutCap) return d;
+    return {...d, pct:-C.lowDemandCutCap, range:C.lowDemandCutCap+'%', capped:true,
+      why:`Market occupancy here is only ${mkOcc.toFixed(0)}% — the demand isn't there to win back with price. `+
+          `Cut held to ${C.lowDemandCutCap}% instead of ${Math.abs(d.pct)}%: a deeper discount would mostly lower the rate on bookings you'd have taken anyway. `+
+          `Put the effort into peak dates instead.`};
+  };
+  const cap = d => revAdjust(cap0(d));   // thin-market cap first, then the RevPAN brake/boost
+  if(w.mode==='watch'){
+    if(gap<=-C.gapStructural) return cap({act:'cut',sev:'md',pct:-C.cutStructural,range:C.cutStructural+'%',
+      why:`More than ${C.gapStructural} pts behind this far out is structural, not timing. Lower the base price rather than papering over it with date overrides.`});
+    return {act:'watch',sev:'lo',pct:null,why:'Inside normal range this far out. Booking curves here don\'t fill yet, and reacting early just erodes ADR.'};
+  }
+  const near=w.from===0;
+  const cD=near?C.cutNearDeep:C.cutFarDeep, cM=near?C.cutNearModest:C.cutFarModest;
+  if(gap<=-C.gapDeep) return cap({act:'cut',sev:'hi',pct:-cD,range:cD+'%',
+    why:near?'Badly behind market on perishable inventory. Cut hard on unbooked nights, drop min-stay, and clear orphan gaps.'
+            :'Badly behind market. Cut, but check min-stay first — a long minimum on soft midweek dates is often the real blocker.'});
+  if(gap<=-C.gapHold) return cap({act:'cut',sev:'md',pct:-cM,range:cM+'%',
+    why:near?'Behind market inside the booking window. Trim unbooked nights and confirm last-minute discounts are switched on.'
+            :'Behind market. A modest trim should re-establish pace before these dates get perishable.'});
+  if(gap<C.gapHold) return {act:'hold',sev:'lo',pct:null,why:`Tracking market inside ±${C.gapHold} pts. This is where you want to be.`};
+  if(gap<C.gapDeep) return cap({act:'raise',sev:'md',pct:C.raiseModest,range:C.raiseModest+'%',
+    why:near?'Ahead of market. Raise remaining unbooked nights — demand is there at a higher rate.'
+            :'Ahead of market. Raise, and consider tightening min-stay to protect weekends.'});
+  const rS=near?C.raiseNearStrong:C.raiseFarStrong;
+  return cap({act:'raise',sev:'hi',pct:rS,range:rS+'%',
+    why:'Far ahead of market. You\'re filling because you\'re cheapest, not because demand is uniquely strong. That\'s ADR left on the table.'});
+}
+const LBL={raise:'Raise',cut:'Cut',hold:'Hold',watch:'Watch'};
+const CLS={raise:'p-raise',cut:'p-cut',hold:'p-hold',watch:'p-watch'};
+const actedOn=k=>k?(LOG.find(e=>e.key===k&&e.ts>=Date.now()-CFG.coolDays*864e5)||null):null;
+const isDismissed=k=>k&&DISMISSED[k]&&DISMISSED[k]>Date.now()-CFG.dismissDays*864e5;
+
+/* ---------- staging ---------- */
+function stage(it){it.pid=++pid;PENDING.push(it);renderTray();document.getElementById('trayresult').innerHTML='';syncButtons()}
+function unstage(id){PENDING=PENDING.filter(p=>p.pid!==id);renderTray();syncButtons()}
+/* Buttons in the calendar reflect tray contents, so re-sync whenever it changes. */
+function syncButtons(){
+  refreshAllDayBtns();
+  document.querySelectorAll('.bulk-btn').forEach(b=>{
+    const st=isStaged(b.dataset.key);
+    b.classList.toggle('staged',st);
+    if(st){ b.disabled=false; b.textContent=b.dataset.done; }
+  });
+}
+let TRAY_MIN=localStorage.getItem('rm_traymin')==='1';
+function toggleTray(){
+  TRAY_MIN=!TRAY_MIN;
+  localStorage.setItem('rm_traymin',TRAY_MIN?'1':'0');
+  renderTray();
+}
+function renderTray(){
+  const t=document.getElementById('tray');
+  if(!PENDING.length){t.classList.add('hide');return}
+  t.classList.remove('hide');
+  t.classList.toggle('min',TRAY_MIN);
+  const tg=document.getElementById('traytoggle');
+  if(tg){ tg.innerHTML=TRAY_MIN?'&#9650;':'&#9660;';
+    tg.title=TRAY_MIN?'Expand the tray':'Collapse the tray to a single bar'; }
+  document.getElementById('traycount').textContent=PENDING.length+' staged change'+(PENDING.length>1?'s':'')+' — nothing sent yet';
+  document.getElementById('traylist').innerHTML=PENDING.map(p=>
+    `<div class="pend"><div class="d"><div class="u">${esc(p.unit)}</div><div>${p.desc}</div></div>
+     <div class="chg">${p.change||''}</div><button class="stage" onclick="unstage(${p.pid})">Remove</button></div>
+     ${p.warn?`<div class="warnbox" style="margin:-2px 0 8px">${esc(p.warn)}</div>`:''}`).join('');
+}
+async function pushAll(){
+  const n=PENDING.length;
+  if(!confirm(`Send ${n} change${n>1?'s':''} to PriceLabs?\n\nThis updates live pricing on your listings.`))return;
+  const b=document.getElementById('pushall');b.disabled=true;b.textContent='Pushing…';
+  const okd=[],bad=[],touched=new Set();
+  for(const p of PENDING){
+    try{ await p.run(); okd.push(p); touched.add(p.uid); if(p.pins) addPins(p.uid,p.pins);
+      LOG.unshift({ts:Date.now(),key:p.key||'',unit:p.unit,desc:p.desc,change:p.change||'',why:p.why||''});
+    }catch(e){ bad.push({p,m:e.message}) }
+  }
+  saveL();
+  // Overrides don't appear in the price calendar until PriceLabs recomputes.
+  for(const uid of touched){ const u=byId(uid); if(u){ try{ await call('refresh_listing_pricing',{listing_id:u.id,pms:u.pms,exclude_reasons_json:true}) }catch(e){} } }
+  PENDING=bad.map(x=>x.p); renderTray();
+  document.getElementById('trayresult').innerHTML=
+    (okd.length?`<div class="ok">Pushed ${okd.length} change${okd.length>1?'s':''} and asked PriceLabs to recompute. Refreshing…</div>`:'')+
+    (bad.length?`<div class="err"><strong>${bad.length} failed and stayed staged:</strong><br>${bad.map(x=>esc(x.p.desc)+' — '+esc(x.m)).join('<br>')}</div>`:'');
+  b.disabled=false;b.textContent='Push to PriceLabs';
+  if(okd.length){ try{ await main() }catch(e){} }
+}
+
+/* ---------- load ---------- */
+async function loadUnit(l){
+  const u={id:l.id,pms:l.pms,name:l.name,cur:l.currency||'USD',
+    city:[l.city_name,l.state].filter(Boolean).join(', '),beds:l.no_of_bedrooms,
+    min:num(l.min),base:num(l.base),max:num(l.max),recBase:num(l.recommended_base_price),
+    push:l.push_enabled,lastPush:l.last_date_pushed,stale:l.last_refreshed_at,
+    snapOcc:{7:num(l.occupancy_next_7),30:num(l.occupancy_next_30),60:num(l.occupancy_next_60)},
+    snapMkt:{7:num(l.market_occupancy_next_7),30:num(l.market_occupancy_next_30),60:num(l.market_occupancy_next_60)},
+    cum:{},mkt:{},adr:{},mpi:{},days:[],ovr:{},
+    profile:profileFor(l),seasons:[],derivedWindows:null,winOverride:null};
+  try{ const wo=JSON.parse(localStorage.getItem('rm_win_'+u.id)||'null'); if(wo) u.winOverride=wo; }catch(e){}
+  // Only what the dashboard needs to render. The heavy neighbourhood and health
+  // endpoints are fetched afterwards by enrichUnit() so a slow market call can't
+  // hold up the whole portfolio.
+  const t=new Date();
+  const [mR,pR,oR]=await Promise.allSettled([
+    call('get_listing_performance_metrics',{listing_id:u.id,pms_name:u.pms,question:'occupancy vs market for the next 90 days'}),
+    call('get_listing_prices',{listing_id:u.id,pms_name:u.pms,
+      date_from:iso(new Date(t.getTime()+864e5)),date_to:iso(new Date(t.getTime()+CAL_HORIZON*864e5))}),
+    call('get_listing_date_overrides',{listing_id:u.id,pms:u.pms,
+      question:'what date specific overrides are currently set',
+      start_date:iso(t),end_date:iso(new Date(t.getTime()+CAL_HORIZON*864e5))})
+  ]);
+
+  if(mR.status==='fulfilled'){
+    const L=mR.value.data?.data?.listing_level||{},M=mR.value.data?.data?.market_level||{};
+    u.rev={}; u.revpar={}; u.stlyRevpar={}; u.stlyAdr={}; u.stlyOcc={};
+    [1,7,15,30,45,60,90,120,180,240,360].forEach(d=>{
+      if(L.occupancy?.[d]!=null)u.cum[d]=L.occupancy[d];
+      if(M.occupancy?.[d]!=null)u.mkt[d]=M.occupancy[d];
+      if(L.adr?.[d]!=null)u.adr[d]=L.adr[d];
+      if(L.mpi?.[d]!=null)u.mpi[d]=L.mpi[d];
+      if(L.revpar?.[d]!=null)u.revpar[d]=L.revpar[d];
+      if(L.revenue?.[d]!=null)u.rev[d]=L.revenue[d];
+      if(L.stly_revpar?.[d]!=null)u.stlyRevpar[d]=L.stly_revpar[d];
+      if(L.stly_adr?.[d]!=null)u.stlyAdr[d]=L.stly_adr[d];
+      if(L.stly_occupancy?.[d]!=null)u.stlyOcc[d]=L.stly_occupancy[d];
+    });
+    // Trailing actuals — the scorecard half of the picture.
+    u.trail={revpar:L.revpar?.['-90']??null, adr:L.adr?.['-90']??null,
+             occ:L.occupancy?.['-90']??null, rev:L.revenue?.['-90']??null,
+             mktOcc:M.occupancy?.['-90']??null};
+    u.year={revpar:L.revpar?.['-999']??null, adr:L.adr?.['-999']??null, occ:L.occupancy?.['-999']??null};
+    u.adrTrail=L.adr?.['-90']??null; u.pickup=L.booking_pickup_unique?.['-30']??null; u.lastBook=L.last_booked_date||null;
+  } else errs.push(esc(u.name)+' — metrics unavailable');
+
+  if(pR.status==='fulfilled'){
+    u.days=pR.value.data?.[0]?.data||[]; u.refreshed=pR.value.data?.[0]?.last_refreshed_at||u.stale;
+  } else errs.push(esc(u.name)+' — price calendar unavailable');
+
+  if(oR.status==='fulfilled') (oR.value.data?.overrides||[]).forEach(x=>{u.ovr[x.date]=x});
+  u.surge={}; u.comp=null;
+
+  return finishUnit(u);
+}
+
+/* Slow, optional market context. Runs after the dashboard is already on screen. */
+async function enrichUnit(u){
+  u.enrich={market:'pending',health:'pending'};
+  const [nR,hR]=await Promise.allSettled([
+    call('get_neighbourhood_data',{listing_id:u.id,pms_name:u.pms,question:'market surge dates and positioning'},1),
+    call('get_listing_health_and_recommendations',{listing_id:u.id,pms_name:u.pms,question:'seasonal booking windows for this market'},1)
+  ]);
+  u.enrich.market = nR.status==='fulfilled' ? 'ok' : (nR.reason?.message||'failed');
+  u.enrich.health = hR.status==='fulfilled' ? 'ok' : (hR.reason?.message||'failed');
+  if(nR.status==='fulfilled'){
+    const nd=nR.value.data?.data||{};
+    u.comp=nd.summary_table||null;
+    u.fpInsight=nd.fp_insights?.insight||''; u.occInsight=nd.occ_insights?.insight||'';
+    (nd.fp_insights?.graph_data||[]).forEach(g=>{ if(g.date) u.surge[g.date]={type:'price',price:g.price}; });
+    (nd.occ_insights?.graph_data||[]).forEach(g=>{ if(g.date) u.surge[g.date]={...(u.surge[g.date]||{}),type:u.surge[g.date]?'both':'demand',occ:g.occupancy}; });
+    // The insight text names ranges; mark every night inside them, not just the peak.
+    [u.fpInsight,u.occInsight].forEach(txt=>{
+      const dates=[...String(txt).matchAll(/children="(\d{1,2}(?:st|nd|rd|th)\s+\w+\s+\d{4})"/g)].map(m=>new Date(m[1].replace(/(st|nd|rd|th)/,'')));
+      for(let i=0;i+1<dates.length;i+=2){
+        const a=dates[i],b=dates[i+1];
+        if(isNaN(a)||isNaN(b)||b<a||(b-a)/864e5>10) continue;
+        for(let dd=new Date(a);dd<=b;dd.setDate(dd.getDate()+1)){
+          const k=iso(dd); if(!u.surge[k]) u.surge[k]={type:'range'};
+        }
+      }
+    });
+  }
+
+  if(hR.status==='fulfilled'){
+    const ms=hR.value.data?.data?.market_section||[];
+    u.seasons=ms.map(row=>{
+      const head=String(row[0]||'');
+      const bw=String(row.join(' ')).match(/happen\s+(\d+)\s*[-–]\s*(\d+)\s*days/i);
+      return {label:head,month:(head.match(/^[A-Za-z]+/)||[''])[0],
+        season:(head.match(/\(([^)]+)\)/)||[,''])[1],
+        bwMin:bw?Number(bw[1]):null, bwMax:bw?Number(bw[2]):null,
+        detail:row.slice(1).join(' · ')};
+    });
+    const nowMonth=new Date().toLocaleDateString('en-US',{month:'long'});
+    const cur=u.seasons.find(x=>x.month===nowMonth)||u.seasons[0];
+    if(cur&&cur.bwMax) { u.derivedWindows=deriveWindows(cur.bwMax); u.derivedFrom=cur; }
+  }
+  return finishUnit(u);
+}
+
+/* Everything derived from whatever data we have so far. Safe to call twice —
+   once on the fast path, again after enrichment adds windows and surge dates. */
+function finishUnit(u){
+  [7,30,60].forEach(d=>{ if(u.cum[d]==null&&u.snapOcc[d]!=null)u.cum[d]=u.snapOcc[d];
+                         if(u.mkt[d]==null&&u.snapMkt[d]!=null)u.mkt[d]=u.snapMkt[d]; });
+  const C=cfgFor(u);
+  u.wins=WINDOWS(u).map(w=>{
+    const disc=(o,a,b)=>(o[a]==null||o[b]==null)?null:(o[b]*b-o[a]*a)/(b-a);
+    const mine=w.from===0?u.cum[snapDFD(w.to)]:disc(u.cum,w.from,w.to);
+    const mk=w.from===0?u.mkt[snapDFD(w.to)]:disc(u.mkt,w.from,w.to);
+    if(mine==null||mk==null)return{...w,na:true};
+    return{...w,mine,mk,gap:mine-mk,d:decide(w.key,mine-mk,C,WINDOWS(u),mk,revPicture(u,w))};
+  });
+  // Effective price = your committed override when one exists, otherwise
+  // PriceLabs' figure. Everything downstream must use this or a second
+  // percentage change would compute off a stale pre-override rate.
+  u.days.forEach(d=>{
+    const o=u.ovr[d.date];
+    d.eff = (o&&o.price&&o.price_type==='fixed') ? Number(o.price) : d.price;
+    // The stable reference point. `price` absorbs your own overrides, so using it
+    // as a base makes every push raise the base for the next one — a ratchet.
+    // `uncustomized_price` is PriceLabs' own view and doesn't move when you push.
+    d.anchor = Number(d.uncustomized_price)>0 ? Number(d.uncustomized_price) : d.price;
+    // ...except it does move: PriceLabs recomputes it on refresh, and on nights
+    // you've overridden it has come back lower. Hold the anchor you pushed from
+    // while that override is still the one in place, for the cooling period.
+    d.pinned=false; d.anchorLive=d.anchor;
+    const pins=PINS[u.id], pin=pins&&pins[d.date];
+    if(pin){
+      const fresh=Date.now()-pin.ts < (C.coolDays||7)*864e5;
+      const same=o&&o.price_type===pin.type&&Math.abs(Number(o.price)-Number(pin.price))<0.5;
+      if(fresh&&same&&!d.booking_status){ d.anchor=pin.anchor; d.pinned=true; }
+      // Expired, or a different override replaced ours: let go. A missing
+      // override may just be a failed fetch, so leave the pin unused but kept.
+      else if(!fresh||(o&&!same)){ delete pins[d.date]; }
+    }
+    d.vsAnchor = d.anchor>0 ? Math.round((d.eff-d.anchor)/d.anchor*100) : 0;
+  });
+  saveP();
+  // Headline counts stay scoped to 90 days even though the calendar fetches
+  // further out, so "open nights / 90d" keeps meaning what it says.
+  const cut=Date.now()+90*864e5;
+  const within90=u.days.filter(d=>new Date(d.date+'T12:00:00')<=cut);
+  const open=within90.filter(d=>!d.booking_status&&!d.unbookable);
+  u.openN=open.length;
+  u.pinned=u.min!=null?open.filter(d=>d.eff<=u.min+0.5).length:0;
+  u.ovrN=Object.keys(u.ovr).length;
+  u.orphans=findOrphans(within90,C);
+  u._open={};   // memo for openIn()
+  u._acts=null; // memo for actionsFor()
+  u.worst=u.wins.filter(w=>!w.na).sort((a,b)=>Math.abs(b.gap)-Math.abs(a.gap))[0]||null;
+  u.broken=u.push===false||u.min==null;
+  return u;
+}
+function findOrphans(days,C){
+  C=C||CFG;
+  const out=[];let run=[];
+  const flush=()=>{if(run.length&&run.length<=C.orphanMaxNights)out.push({dates:run.map(d=>d.date),n:run.length,from:run[0].date,to:run[run.length-1].date});run=[]};
+  days.forEach(d=>{if(!d.booking_status&&!d.unbookable)run.push(d);else flush()});
+  return out.slice(0,12);
+}
+function openIn(u,from,to){
+  const k=from+'-'+to;
+  if(u._open&&u._open[k])return u._open[k];
+  const now=Date.now();
+  const r=u.days.filter(d=>{
+    if(d.booking_status||d.unbookable)return false;
+    const off=(new Date(d.date+'T12:00:00')-now)/864e5;
+    return off>from&&off<=to;
+  });
+  if(u._open)u._open[k]=r;
+  return r;
+}
+
+/* ---------- portfolio triage ---------- */
+/* Gap → severity. Ahead is green but a very large lead is amber: it means
+   underpricing, which costs you money just as surely as lagging does. */
+function gapClass(gap,C){
+  C=C||CFG;
+  if(gap<=-C.gapDeep)return 's-bad';
+  if(gap<=-C.gapHold)return 's-warn';
+  if(gap<C.gapHold)return 's-good';
+  if(gap<C.gapDeep)return 's-warn';
+  return 's-bad';
+}
+function gapCell(w,C){
+  if(!w||w.na)return '<td class="r muted">—</td>';
+  const g=(w.gap>=0?'+':'')+w.gap.toFixed(0);
+  const cls=gapClass(w.gap,C);
+  return `<td class="r bignum ${cls==='s-good'?'muted':cls}">${g}</td>`;
+}
+/* Empty state has two very different causes — say which one it is. */
+function emptyState(){
+  if(!UNITS.length) return `<div class="card"><h2>No properties loaded</h2>
+    <p class="muted">PriceLabs returned nothing this time. Their connector is in beta and does go offline — this is almost always a connection problem rather than a data one. Nothing has been deleted, and your overrides and change log are safe.</p>
+    <button class="go" onclick="main()">Try loading again</button></div>`;
+  return `<div class="card"><h2>All ${UNITS.length} propert${UNITS.length>1?'ies are':'y is'} hidden</h2>
+    <p class="muted">Nothing has been lost — hiding only filters this dashboard, and your PriceLabs data is untouched.</p>
+    <button class="go" onclick="unhideAll()">Show all properties</button>${hiddenBar()}</div>`;
+}
+function portfolioView(){
+  const V=vis();
+  if(!V.length)return emptyState();
+  const scoredAll=V.map(u=>{
+    const live=actionsFor(u).filter(a=>!actedOn(a.key)&&!isDismissed(a.key));
+    return {u,n:live.length,urgent:live.some(a=>a.sev==='hi')||u.broken};
+  }).sort((a,b)=>(b.urgent-a.urgent)||(b.n-a.n)||a.u.name.localeCompare(b.u.name));
+  const scored=ONLY.portfolio?scoredAll.filter(x=>x.n>0):scoredAll;
+  if(ONLY.portfolio&&!scored.length) return `<div class="card"><h2>Nothing needs attention</h2>
+    <p class="muted">All ${scoredAll.length} propert${scoredAll.length>1?'ies are':'y is'} tracking inside their thresholds with clean calendars.</p>
+    ${onlyToggle('portfolio',0,scoredAll.length,'properties')}</div>`;
+
+  const rows=scored.map(({u,n,urgent})=>{
+    const st=u.push===false?'<span class="pill p-broke">Sync off</span>'
+      :n===0?'<span class="pill p-raise">Clear</span>'
+      :`<span class="pill ${urgent?'p-cut':'p-watch'}">${n} to do</span>`;
+    const C=cfgFor(u);
+    const rowCls=u.push===false||urgent?'row-bad':n?'row-warn':'row-good';
+    const pinBad=u.min!=null&&u.openN&&u.pinned/u.openN>C.floorBindPct/100;
+    return `<tr class="clickable ${rowCls}" onclick="goUnit('${u.id}')">
+      <td><strong>${esc(u.name)}</strong><div class="tiny muted">${esc(u.city)}${u.profile&&u.profile.id!=='default'?` · ${esc(u.profile.name)}`:''}</div></td>
+      <td>${st}</td>
+      ${gapCell(u.wins[0],C)}${gapCell(u.wins[1],C)}${gapCell(u.wins[2],C)}
+      <td class="r bignum ${(()=>{const f=u.revpar?.[90],t=(u.trail||{}).revpar;
+        return (f==null||t==null||!t)?'muted':f>=t?'s-good':'s-bad';})()}"
+        title="RevPAN for the next 90 days versus your trailing 90">${u.revpar?.[90]!=null?money(u.revpar[90]):'—'}</td>
+      <td class="r bignum">${u.openN}</td>
+      <td class="r bignum ${pinBad?'s-warn':'muted'}">${u.min!=null?u.pinned:'—'}</td>
+      <td class="r bignum ${u.orphans.length?'s-warn':'muted'}">${u.orphans.length||'—'}</td>
+      <td class="r bignum ${u.ovrN?'s-good':'muted'}">${u.ovrN||'—'}</td>
+      <td class="r tiny ${u.min==null?'s-bad':'muted'}">${u.base!=null?money(u.base):'—'} / ${u.min!=null?money(u.min):'none'}</td>
+      <td><button class="stage" onclick="event.stopPropagation();hideUnit('${u.id}')">Hide</button></td>
+    </tr>`;
+  }).join('');
+
+  const totals=scoredAll.reduce((a,s)=>({n:a.n+s.n,urgent:a.urgent+(s.urgent?1:0)}),{n:0,urgent:0});
+  return `<div class="card">
+    <div class="chead"><div><h2>${V.length} propert${V.length>1?'ies':'y'}</h2>
+      <div class="tiny muted">${totals.n?`${totals.n} action${totals.n>1?'s':''} across ${scoredAll.filter(s=>s.n).length} propert${scoredAll.filter(s=>s.n).length>1?'ies':'y'}`:'Nothing outstanding'}${totals.urgent?` · ${totals.urgent} need attention first`:''}</div></div>
+      <div>${onlyToggle('portfolio',scored.length,scoredAll.length,'properties')}</div></div>
+    <div class="scroll wide tall"><table><thead><tr>
+      <th>Property</th><th>Status</th>
+      <th class="r">${tip('gap','0–30')}</th><th class="r">31–60</th><th class="r">61–90</th>
+      <th class="r">${tip('revpan','RevPAN')}</th>
+      <th class="r">${tip('open','Open')}</th><th class="r">${tip('floorN','At floor')}</th>
+      <th class="r">${tip('orph','Orphans')}</th><th class="r">${tip('ovr','Overrides')}</th>
+      <th class="r">${tip('base','Base')} / ${tip('min','Floor')}</th><th></th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+    ${hiddenBar()}
+    <div class="note">Sorted by what needs you most. Click any row to open that property. The three gap columns are your occupancy minus the market's, in points — bold means outside &plusmn;8 and therefore actionable.</div>
+  </div>`;
+}
+function goUnit(id){
+  CAL_SEL=id;
+  COLLAPSED[id]=false; saveC();          // opening from the table should show the detail
+  show('units');
+  setTimeout(()=>{const el=document.getElementById('card-'+id); if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},80);
+}
+
+/* ---------- actions ---------- */
+function actionsFor(u){
+  if(u._acts)return u._acts;          // recomputed on every render otherwise
+  const CFG=cfgFor(u);
+  const acts=[];
+  if(u.push===false){
+    acts.push({unit:u.name,uid:u.id,sev:'hi',rank:-2,key:`${u.id}:sync`,
+      title:'PriceLabs is not pushing prices to this listing',
+      why:(u.lastPush?`Sync is off; last push was ${new Date(u.lastPush).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}. `:'Sync has never run for this property. ')
+        +'You are hand-pricing this unit right now. Sync has to be switched on inside PriceLabs — this dashboard can\'t toggle it.'});
+    if(u.min==null)acts.push({unit:u.name,uid:u.id,sev:'md',rank:-1,key:`${u.id}:nofloor`,
+      title:'No minimum price set',
+      why:'There is no floor configured, so once sync is on PriceLabs can discount without limit. Set a min on this card before turning pricing on.'});
+  }
+  u.wins.forEach(w=>{
+    if(w.na||w.d.act==='hold'||w.d.act==='watch')return;
+    const n=openIn(u,w.from,w.to).length;
+    acts.push({unit:u.name,uid:u.id,sev:w.d.sev,key:`${u.id}:win:${w.key}`,
+      title:`${LBL[w.d.act]} ${w.d.range} on unbooked nights, ${w.label}`,
+      why:`${w.d.why} You're at ${w.mine.toFixed(0)}% vs market ${w.mk.toFixed(0)}% — a gap of ${w.gap>=0?'+':''}${w.gap.toFixed(0)} pts.`,
+      btn:n?`<input type="hidden" id="pct-${u.id}-${w.key}" value="${w.d.pct}">
+        <button class="stage" onclick="stageWindow(byId('${u.id}'),win('${u.id}','${w.key}'))">Stage ${w.d.pct>0?'+':''}${w.d.pct}% on ${n} nights</button>`:'',
+      note:(()=>{const st=stackCheck(u,openIn(u,w.from,w.to),w.d.pct);return st?st.text:null})(),
+      rank:(w.d.sev==='hi'?0:1)*10+(w.key==='w1'?0:w.key==='w2'?1:2)});
+  });
+  if(u.openN&&u.min!=null&&u.pinned/u.openN>CFG.floorBindPct/100){
+    const mpi=u.mpi[90];
+    acts.push({unit:u.name,uid:u.id,sev:(mpi&&mpi>CFG.mpiFarAhead)?'hi':'md',rank:5,key:`${u.id}:floor`,
+      title:`Raise the ${money(u.min)} price floor`,
+      why:`${u.pinned} of ${u.openN} open nights sit exactly at your minimum, so the floor is setting your price rather than the algorithm.`+
+        (mpi&&mpi>CFG.mpiFarAhead?` You're filling at ${mpi.toFixed(1)}× the market rate — cheapest option, not most in demand. Test ${money(u.min*1.1)}–${money(u.min*1.2)} and watch pace for a week.`:''),
+      btn:`<button class="stage" onclick="quickMin('${u.id}',1.15)">Stage floor at ${money(u.min*1.15)}</button>`});
+  }
+  if(u.base!=null&&u.recBase!=null&&Math.abs(u.base-u.recBase)/u.recBase>CFG.baseDriftPct/100){
+    acts.push({unit:u.name,uid:u.id,sev:'md',rank:6,key:`${u.id}:base`,
+      title:`Base price is ${u.base>u.recBase?'above':'below'} PriceLabs' recommendation`,
+      why:`You're at ${money(u.base)}; PriceLabs recommends ${money(u.recBase)} from current comp-set data. The base scales everything else.`,
+      btn:`<button class="stage" onclick="quickBase('${u.id}')">Stage base at ${money(u.recBase)}</button>`});
+  }
+  if(u.orphans.length){
+    acts.push({unit:u.name,uid:u.id,sev:'md',rank:7,key:`${u.id}:orphans`,
+      title:`${u.orphans.length} orphan gap${u.orphans.length>1?'s':''} in the next 90 days`,
+      why:`Short gaps between bookings: ${u.orphans.slice(0,5).map(o=>o.n===1?fmtD(o.from):fmtD(o.from)+'–'+fmtD(o.to)).join(', ')}. Revenue on a night nobody can book is zero.`,
+      btn:`<button class="stage" onclick="stageOrphans(byId('${u.id}'))">Stage 25% off, 1-night min</button>`});
+  }
+  u._acts=acts;
+  return acts;
+}
+function buildActions(V){
+  const all=V.flatMap(actionsFor);
+  const done=[],dis=[],live=[];
+  all.forEach(a=>{
+    const e=actedOn(a.key);
+    if(e){a.done=e;done.push(a)}
+    else if(isDismissed(a.key))dis.push(a);
+    else live.push(a);
+  });
+  live.sort((a,b)=>a.rank-b.rank);
+  done.sort((a,b)=>b.done.ts-a.done.ts);
+
+  // Group the moves by property so each carries its own market's season header.
+  const card=a=>`<div class="act ${a.sev}">
+    <button class="x dis" title="Dismiss" onclick="dismiss('${esc(a.key)}')">&times;</button>
+    <div class="u">${esc(a.unit)}</div><div class="t">${a.title}</div><div class="w">${a.why}</div>
+    ${a.note?`<div class="warnbox" style="margin-top:8px">${esc(a.note)}</div>`:''}
+    ${a.btn?`<div class="do">${a.btn}</div>`:''}</div>`;
+
+  const doneHtml=done.length?`<div class="card">
+    <h3 style="margin-top:0">Already handled — ${done.length} paused</h3>
+    ${done.map(a=>{const d=a.done,ago=daysAgo(d.ts),left=CFG.coolDays-ago;
+      return `<div class="act lo" style="opacity:.8"><div class="u">${esc(a.unit)}</div>
+        <div class="t" style="font-weight:500">${a.title}</div>
+        <div class="w"><strong>Done ${dayName(d.ts)}</strong>${ago===0?' (today)':ago===1?' (yesterday)':` (${ago} days ago)`} — ${esc(String(d.change).replace(/<[^>]*>/g,''))}.
+        ${left>0?`Hidden for another ${left} day${left>1?'s':''} so you can see whether pace responds.`:'Back tomorrow.'}
+        <button class="stage" style="margin-left:6px" onclick="undoPause('${esc(a.key)}')">Un-pause</button></div></div>`}).join('')}
+    <div class="note" style="margin-top:4px">Raising a price doesn't move occupancy the same day, so the underlying gap keeps reading the same way for a while. These are paused rather than recalculated.</div></div>`:'';
+
+  const disHtml=dis.length?`<div class="card"><h3 style="margin-top:0">Dismissed — ${dis.length}</h3>
+    ${dis.map(a=>`<div class="act lo" style="opacity:.7"><div class="u">${esc(a.unit)}</div>
+      <div class="t" style="font-weight:500">${a.title}</div>
+      <div class="w">Dismissed ${dayName(DISMISSED[a.key])}. Returns after 30 days.
+      <button class="stage" style="margin-left:6px" onclick="undismiss('${esc(a.key)}')">Restore</button></div></div>`).join('')}</div>`:'';
+
+  const byUnit=[...new Set(live.map(a=>a.uid))];
+  const seasonHead=uid=>{
+    const u=byId(uid), a=u&&seasonAdvice(u);
+    if(!a||!a.line) return '';
+    return `<div class="note" style="margin:14px 0 8px"><strong>${esc(u.name)} — ${esc(a.month)}, ${esc(a.season)}${a.bwMax!=null?`, books ${a.bwMin}–${a.bwMax} days out`:''}.</strong> ${esc(a.line)}</div>`;
+  };
+  const grouped=byUnit.length>1
+    ? byUnit.map(uid=>seasonHead(uid)+live.filter(a=>a.uid===uid).map(card).join('')).join('')
+    : (byUnit.length?seasonHead(byUnit[0]):'')+live.map(card).join('');
+  const extras=ONLY.actions?'':doneHtml+disHtml;
+  const tucked=done.length+dis.length;
+  const filterBar=`<div class="bar" style="position:static;padding:0;margin:0 0 12px;background:none">
+    <button class="filt${ONLY.actions?' on':''}" onclick="toggleOnly('actions')" ${tucked?'':'disabled'}
+      title="${tucked?(ONLY.actions?`Paused and dismissed cards are hidden — ${tucked} of them. Click to show them again.`:'Hide the paused and dismissed sections below.')
+        :'Nothing is paused or dismissed, so there is nothing to hide.'}">
+      <span class="fdot"></span>${ONLY.actions?`Needs action only · ${live.length}`:'Hide paused &amp; dismissed'}${ONLY.actions&&tucked?` <span class="fmut">${tucked} hidden</span>`:''}</button>
+    <span class="tiny muted">${done.length} paused · ${dis.length} dismissed</span></div>`;
+  const head=live.length?filterBar+grouped
+    :`<div class="card"><h2>${done.length||dis.length?'Nothing left to act on':'Nothing to change this week'}</h2>
+      <p class="muted" style="margin-bottom:0">${done.length?'Everything flagged has been pushed. Give it a week and see how pace responds.':'Every window is tracking inside its hold band and the calendar is clean. Constant tinkering makes it impossible to tell what worked.'}</p>
+      ${filterBar}</div>`;
+  return head+extras;
+}
+function dismiss(k){DISMISSED[k]=Date.now();saveD();renderAll()}
+function undismiss(k){delete DISMISSED[k];saveD();renderAll()}
+function undoPause(k){
+  if(!confirm('Bring this suggestion back?\n\nThe change stays in your log — this only un-hides the recommendation.'))return;
+  LOG=LOG.map(e=>e.key===k?{...e,key:e.key+'~unpaused'}:e);saveL();renderAll();
+}
+
+/* ---------- unit cards ---------- */
+function unitCard(u){
+  const head=u.worst?u.worst.d.act:'hold';
+  const open=isOpen(u.id);
+  const liveN=actionsFor(u).filter(a=>!actedOn(a.key)&&!isDismissed(a.key)).length;
+  const rows=u.wins.map(w=>{
+    if(w.na)return `<tr><td>${w.label}</td><td colspan="5" class="muted">No data</td></tr>`;
+    const n=openIn(u,w.from,w.to).length;
+    const g=(w.gap>=0?'+':'')+w.gap.toFixed(0);
+    return `<tr><td>${w.label}<div class="tiny muted">${w.speed}</div></td>
+      <td class="r bignum">${w.mine.toFixed(0)}%</td><td class="r bignum muted">${w.mk.toFixed(0)}%</td>
+      <td class="r bignum ${gapClass(w.gap,cfgFor(u))}">${g} pts</td>
+      <td><span class="pill ${CLS[w.d.act]}">${LBL[w.d.act]}${w.d.range?' '+w.d.range:''}</span></td>
+      <td class="r">${w.d.pct&&n?`<input type="number" id="pct-${u.id}-${w.key}" value="${w.d.pct}" style="width:60px">
+        <button class="stage" onclick="stageWindow(byId('${u.id}'),win('${u.id}','${w.key}'))">Stage · ${n}</button>`:'<span class="tiny muted">—</span>'}</td></tr>`;
+  }).join('');
+  const recent=LOG.filter(e=>e.key&&e.key.startsWith(u.id+':')).sort((a,b)=>b.ts-a.ts)[0];
+
+  return `<div class="card" id="card-${u.id}">
+    <div class="chead">
+      <div><h2>${esc(u.name)}</h2>
+        <div class="tiny muted">${esc(u.city)}${u.beds?' · '+u.beds+' BR':''}${u.push===false?' · <strong class="down">SYNC OFF</strong>':''}${u.profile?` · profile <strong>${esc(u.profile.name)}</strong>`:''}${u.derivedFrom&&!u.winOverride&&cfgFor(u).seasonalWindows?` · windows sized to ${esc(u.derivedFrom.month)} (${u.derivedFrom.bwMin}–${u.derivedFrom.bwMax}d lead)`:''}${u.winOverride?' · custom windows':''}</div>
+        ${recent?`<div class="tiny" style="color:#15803d;margin-top:3px">✓ You changed this ${daysAgo(recent.ts)===0?'today':daysAgo(recent.ts)===1?'yesterday':daysAgo(recent.ts)+' days ago'} — ${esc(recent.desc)}</div>`:''}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="pill ${CLS[head]}">${LBL[head]}</span>
+        <button class="stage" id="tog-${u.id}" onclick="toggleUnit('${u.id}')">${open?'Collapse':'Expand'}</button></div>
+    </div>
+
+    ${open?'':`<div class="tiny muted" style="margin-top:-6px">
+      ${u.wins.filter(w=>!w.na).map(w=>`${w.label.replace(' days','d')}: <strong class="${w.gap>=0?'up':'down'}">${w.gap>=0?'+':''}${w.gap.toFixed(0)}</strong>`).join(' &nbsp;·&nbsp; ')}
+      &nbsp;·&nbsp; ${u.openN} open &nbsp;·&nbsp; ${u.ovrN} override${u.ovrN===1?'':'s'}${liveN?` &nbsp;·&nbsp; <strong>${liveN} to do</strong>`:''}</div>`}
+
+    <div class="ubody ${open?'':'hide'}" id="body-${u.id}">
+    ${seasonStrip(u)}
+    ${(()=>{
+      const C=cfgFor(u);
+      const mpi=u.mpi[90], adrD=(u.adr[90]!=null&&u.adrTrail)?u.adr[90]-u.adrTrail:null;
+      const mpiC=mpi==null?'':mpi>=C.mpiFarAhead?'s-bad':mpi>=C.mpiAhead?'s-warn':mpi>=C.mpiBehind?'s-good':'s-bad';
+      const adrC=adrD==null?'':adrD>=0?'s-good':adrD<-15?'s-bad':'s-warn';
+      const pinRatio=u.min!=null&&u.openN?u.pinned/u.openN:0;
+      const pinC=u.min==null?'s-bad':pinRatio>C.floorBindPct/100?'s-warn':'s-good';
+      const pickC=u.pickup==null?'':u.pickup===0?'s-bad':u.pickup<2?'s-warn':'s-good';
+      const mRev=marketRevpan(u,90), rIdx=(u.revpar?.[90]!=null&&mRev)?u.revpar[90]/mRev:null;
+      return `<div class="grid">
+      <div class="cell ${rIdx==null?'':rIdx>=1?'s-good':rIdx>=0.85?'s-warn':'s-bad'}">
+        <div class="k">${tip('revpanIdx','RevPAN vs market')}</div>
+        <div class="v bignum">${rIdx!=null?rIdx.toFixed(2)+'×':(u.revpar?.[90]!=null?money(u.revpar[90]):'—')}</div>
+        <div class="n">${rIdx!=null?`${money(u.revpar[90])} vs market ${money(mRev)}`
+          :u.revpar?.[90]==null?'no RevPAN data'
+          :!u.enrich||u.enrich.market==='pending'?'market figure loading…'
+          :u.enrich.market==='ok'?'comp-set price unavailable'
+          :'market call failed — see below'}</div></div>
+      <div class="cell ${adrC}"><div class="k">${tip('adr','ADR 90d')}</div><div class="v bignum">${u.adr[90]!=null?money(u.adr[90]):'—'}</div>
+        <div class="n">${adrD!=null?`${adrD>=0?'+':'−'}${money(Math.abs(adrD))} vs trailing`:''}</div></div>
+      <div class="cell ${mpiC}"><div class="k">${tip('mpi','Market index')}</div><div class="v bignum">${mpi!=null?mpi.toFixed(1)+'×':'—'}</div>
+        <div class="n">${mpi==null?'':mpi>=C.mpiFarAhead?'far ahead — likely underpriced':mpi>=C.mpiAhead?'ahead of market':mpi>=C.mpiBehind?'tracking market':'behind market'}</div></div>
+      <div class="cell"><div class="k">${tip('sync','Sync')}</div><div class="v">${u.push?'On':'Off'}</div>
+        <div class="n">${u.refreshed?tip('refresh','refreshed '+new Date(u.refreshed).toLocaleDateString('en-US',{month:'short',day:'numeric'})):(u.push?'':'not pushing')}</div></div>
+      <div class="cell ${pinC}"><div class="k">${tip('open','Open nights')}</div><div class="v bignum">${u.openN}</div>
+        <div class="n">${u.min!=null?`${u.pinned} at floor${pinRatio>C.floorBindPct/100?' — floor is binding':''}`:'no floor set'}</div></div>
+      <div class="cell ${u.ovrN?'s-good':''}"><div class="k">${tip('ovr','Your overrides')}</div><div class="v bignum">${u.ovrN}</div>
+        <div class="n">${u.ovrN?'committed in PriceLabs':'none set'}</div></div>
+      <div class="cell ${pickC}"><div class="k">${tip('pickup','Bookings 30d')}</div><div class="v bignum">${u.pickup??'—'}</div>
+        <div class="n">${u.lastBook?'last '+new Date(u.lastBook).toLocaleDateString('en-US',{month:'short',day:'numeric'}):''}</div></div>
+    </div>`})()}
+
+    <h3>Price settings</h3>
+    <div class="ctl">
+      <label class="f">${tip('base','Base')}<input type="number" id="base-${u.id}" value="${u.base??''}"></label>
+      <label class="f">${tip('min','Min')}<input type="number" id="min-${u.id}" value="${u.min??''}" placeholder="none"></label>
+      <label class="f">${tip('max','Max')}<input type="number" id="max-${u.id}" value="${u.max??''}" placeholder="none"></label>
+      <button onclick="stagePrices(byId('${u.id}'))">Stage price settings</button>
+      <span class="tiny muted">${u.recBase!=null?'PriceLabs suggests base '+money(u.recBase):''}</span>
+    </div>
+
+    ${revpanCard(u)}
+
+    <h3>Pace vs market</h3>
+    <div class="scroll"><table><thead><tr><th>Window</th><th class="r">${tip('occ','You')}</th><th class="r">${tip('mkt','Market')}</th>
+      <th class="r">${tip('gap','Gap')}</th><th>Call</th><th class="r">Apply %</th></tr></thead><tbody>${rows}</tbody></table></div>
+
+    <h3>Ask PriceLabs</h3>
+    <div class="ctl">
+      <button onclick="runHealth('${u.id}')">Health check &amp; seasonal read</button>
+      <button onclick="runMarket('${u.id}')">Market position &amp; comp set</button>
+      <button onclick="loadStays('${u.id}')">Stays &amp; booking window</button>
+      <button onclick="runDiagnose('${u.id}')">Why isn't this booking?</button>
+    </div>
+    <div id="diag-${u.id}"></div>
+    <div id="stays-${u.id}"></div>
+
+    <h3>Maintenance</h3>
+    <div class="ctl">
+      ${u.orphans.length?`<button onclick="stageOrphans(byId('${u.id}'))">Clear ${u.orphans.length} orphan gap${u.orphans.length>1?'s':''}</button>`:''}
+      <label class="f">Clear overrides, next N days<input type="number" id="clr-${u.id}" value="30"></label>
+      <button onclick="stageClear(byId('${u.id}'))">Stage clear</button>
+      <button onclick="stageRefresh(byId('${u.id}'))">Recompute pricing</button>
+      <button onclick="hideUnit('${u.id}')" title="Filter this property out of the dashboard. Nothing changes in PriceLabs.">Hide from dashboard</button>
+    </div>
+    <div class="chart"><canvas id="ch-${u.id}"></canvas></div>
+    </div>
+  </div>`;
+}
+
+/* collapse state — defaults to collapsed once the portfolio gets big enough
+   that scrolling every expanded card would be slower than scanning */
+let COLLAPSED={};
+try{COLLAPSED=JSON.parse(localStorage.getItem('rm_collapsed')||'{}')}catch(e){COLLAPSED={}}
+const saveC=()=>localStorage.setItem('rm_collapsed',JSON.stringify(COLLAPSED));
+function isOpen(id){
+  if(COLLAPSED[id]!==undefined) return !COLLAPSED[id];
+  return UNITS.length-HIDDEN.length<=CFG.autoCollapseAbove;   // few: expanded. many: collapsed.
+}
+function toggleUnit(id){
+  COLLAPSED[id]=isOpen(id); saveC();
+  const u=byId(id), card=document.getElementById('card-'+id);
+  if(!u||!card){renderAll();return}
+  if(CHARTS[id]){try{CHARTS[id].destroy()}catch(e){} delete CHARTS[id]}
+  card.outerHTML=unitCard(u);          // swap one card, not the whole tab
+  if(isOpen(id)) setTimeout(()=>drawChart(u),20);
+}
+function setAll(open){
+  vis().forEach(u=>COLLAPSED[u.id]=!open); saveC(); renderAll();
+}
+
+/* ---------- theme ---------- */
+/* Defaults to light because the dashboard sits inside Cowork's light UI —
+   dark is opt-in and then remembered. */
+let THEME=localStorage.getItem('rm_theme')||'light';
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme',THEME);
+  const b=document.getElementById('theme');
+  if(b) b.textContent = THEME==='dark' ? 'Light' : 'Dark';
+}
+function toggleTheme(){
+  THEME = THEME==='dark' ? 'light' : 'dark';
+  localStorage.setItem('rm_theme',THEME);
+  applyTheme();
+  vis().filter(u=>isOpen(u.id)).forEach(drawChart);   // charts paint their own colours
+}
+applyTheme();
+
+const CHARTS={};
+function drawChart(u){
+  const el=document.getElementById('ch-'+u.id);if(!el)return;
+  const ds=[1,7,15,30,45,60,90,120].filter(d=>u.cum[d]!=null&&u.mkt[d]!=null);
+  if(!ds.length)return;
+  if(CHARTS[u.id])CHARTS[u.id].destroy();
+  const dark=THEME==='dark';
+  const cMine=dark?'#e8e8ea':'#18181b', cMkt=dark?'#6b6b76':'#a1a1aa',
+        cGrid=dark?'#26262c':'#f4f4f5', cText=dark?'#9a9aa4':'#6b7280';
+  CHARTS[u.id]=new Chart(el,{type:'line',
+    data:{labels:ds.map(d=>d+'d'),datasets:[
+      {label:'You',data:ds.map(d=>u.cum[d]),borderColor:cMine,backgroundColor:cMine,tension:.3,borderWidth:2,pointRadius:3},
+      {label:'Market',data:ds.map(d=>u.mkt[d]),borderColor:cMkt,backgroundColor:cMkt,tension:.3,borderWidth:2,borderDash:[5,4],pointRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11},color:cText}},
+        title:{display:true,text:'Cumulative forward occupancy vs market',font:{size:11,weight:'normal'},color:cText}},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%',font:{size:11},color:cText},grid:{color:cGrid}},
+              x:{grid:{display:false},ticks:{font:{size:11},color:cText}}}}});
+}
+
+/* ---------- ALOS and booking window ----------
+   Computed from reservation-level rows, which carry no_of_days (length of stay)
+   and lead_time (days between booking and check-in). Fetched on demand because
+   it's a separate call and only the scorecard needs it. */
+async function loadStays(id){
+  const u=byId(id), box=document.getElementById('stays-'+id);
+  if(box) box.innerHTML='<div class="note">Pulling reservation history…</div>';
+  try{
+    const t=new Date();
+    const from=new Date(t.getTime()-540*864e5), to=new Date(t.getTime()+400*864e5);
+    const r=await call('get_bookings_report',{question:'length of stay and booking window',
+      date_filters:{min_check_in_date:iso(from),max_check_in_date:iso(to)},
+      filters:{listings:[{listing_id:u.id,pms_name:u.pms}]},limit:500});
+    u.stays=(r.data?.data?.reservations||[]).filter(x=>x.status==='booked');
+    renderStays(id);
+  }catch(e){
+    if(box) box.innerHTML=`<div class="err">Couldn't load reservation history: ${esc(e.message)}</div>`;
+  }
+}
+function staysStats(rows){
+  if(!rows||!rows.length) return null;
+  const los=rows.map(r=>Number(r.no_of_days)).filter(n=>n>0);
+  const lead=rows.map(r=>Number(r.lead_time)).filter(n=>n>=0);
+  const mean=a=>a.length?a.reduce((s,n)=>s+n,0)/a.length:null;
+  const med=a=>{if(!a.length)return null;const b=[...a].sort((x,y)=>x-y);const m=b.length>>1;
+    return b.length%2?b[m]:(b[m-1]+b[m])/2;};
+  const buckets=[[1,1,'1 night'],[2,2,'2 nights'],[3,4,'3–4'],[5,7,'5–7'],[8,999,'8+']];
+  const dist=buckets.map(([lo,hi,label])=>({label,n:los.filter(x=>x>=lo&&x<=hi).length}));
+  const bySrc={};
+  rows.forEach(r=>{const k=r.booking_source||'other';(bySrc[k]=bySrc[k]||[]).push(r)});
+  return {n:rows.length,alos:mean(los),alosMed:med(los),lead:mean(lead),leadMed:med(lead),
+    sameDay:lead.filter(x=>x===0).length,dist,
+    bySrc:Object.entries(bySrc).map(([k,v])=>({src:k,n:v.length,
+      alos:mean(v.map(x=>Number(x.no_of_days)).filter(n=>n>0)),
+      adr:mean(v.map(x=>Number(x.nightly_amount)).filter(n=>n>0))})).sort((a,b)=>b.n-a.n)};
+}
+function renderStays(id){
+  const u=byId(id), box=document.getElementById('stays-'+id); if(!box) return;
+  const s=staysStats(u.stays);
+  if(!s){ box.innerHTML='<div class="note">No booked reservations in the window.</div>'; return; }
+  const C=cfgFor(u);
+  const maxN=Math.max(...s.dist.map(d=>d.n),1);
+  const shortShare=Math.round((s.dist[0].n+s.dist[1].n)/s.n*100);
+  return box.innerHTML=`<div class="card" style="margin-top:12px">
+    <div class="chead"><div><h2>Stays &amp; booking window</h2>
+      <div class="tiny muted">${s.n} booked reservations</div></div></div>
+    <div class="grid">
+      <div class="cell"><div class="k">${tip('alos','ALOS')}</div><div class="v bignum">${s.alos.toFixed(1)}</div>
+        <div class="n">median ${s.alosMed} night${s.alosMed===1?'':'s'}</div></div>
+      <div class="cell"><div class="k">${tip('bwin','Booking window')}</div><div class="v bignum">${s.lead.toFixed(0)}d</div>
+        <div class="n">median ${s.leadMed}d${s.sameDay?` · ${s.sameDay} same-day`:''}</div></div>
+      <div class="cell ${shortShare>50?'s-warn':''}"><div class="k">1–2 night stays</div><div class="v bignum">${shortShare}%</div>
+        <div class="n">of all bookings</div></div>
+    </div>
+    <h3>Length of stay</h3>
+    <div class="scroll"><table><tbody>${s.dist.map(d=>`<tr>
+      <td style="width:80px">${d.label}</td>
+      <td><div style="background:#18181b;height:14px;border-radius:3px;width:${Math.round(d.n/maxN*100)}%;min-width:${d.n?'6px':'0'}"></div></td>
+      <td class="r bignum" style="width:70px">${d.n}${d.n?` <span class="muted tiny">${Math.round(d.n/s.n*100)}%</span>`:''}</td>
+    </tr>`).join('')}</tbody></table></div>
+    <h3>By channel</h3>
+    <div class="scroll"><table><thead><tr><th>Source</th><th class="r">Bookings</th><th class="r">ALOS</th><th class="r">ADR</th></tr></thead>
+    <tbody>${s.bySrc.map(x=>`<tr><td>${esc(x.src)}</td><td class="r bignum">${x.n}</td>
+      <td class="r bignum">${x.alos!=null?x.alos.toFixed(1):'—'}</td>
+      <td class="r bignum">${x.adr!=null?money(x.adr):'—'}</td></tr>`).join('')}</tbody></table></div>
+    <div class="note">${shortShare>50
+      ? `Over half your bookings are 1–2 nights. Short stays cost more per booking in turnover and cleaning, so a minimum-stay rise on strong dates may lift RevPAN even if it costs a little occupancy — but check the minimum isn't already blocking longer stays first.`
+      : `Your stay mix is reasonably long, which keeps turnover costs down. Be careful raising minimums further; the gain in ALOS may cost more occupancy than it's worth.`}
+      Median booking window is ${s.leadMed} days — the ${s.leadMed<=7?'near window is where almost everything happens, so far-out gaps are normal rather than alarming':'market books far enough ahead that a soft far window is a genuine signal'}.</div>
+  </div>`;
+}
+
+/* ---------- RevPAN scorecard ----------
+   Pace tells you what to do next; RevPAN tells you whether the last round of
+   decisions made money. They answer different questions and both are needed —
+   high occupancy with collapsing ADR reads as a win on pace alone.
+
+   PriceLabs does not publish market ADR or market RevPAN, only market
+   occupancy, so "beat the market's RevPAN" isn't computable here. What is
+   available: your own RevPAN forward, trailing, and same time last year. */
+/* Market RevPAN = market occupancy × market ADR. PriceLabs' metrics endpoint
+   publishes market occupancy but not market ADR; the comp-set median asking
+   price from the neighbourhood call stands in for it. Checked against the
+   Market Dashboard's own published figure it lands within a fraction of a
+   percent, but it remains an asking-price proxy rather than achieved ADR. */
+/* RevPAN index for a window, plus whether your rate is already under the comp
+   set. Both are needed: a low index caused by weak rate calls for the opposite
+   move to a low index caused by weak occupancy. */
+function revPicture(u,w){
+  const d=snapDFD(w.to);
+  const adr=marketAdr(u), mkOcc=u.mkt?.[d], mine=u.revpar?.[d];
+  if(adr==null||mkOcc==null||mine==null) return null;
+  const mRev=adr*mkOcc/100;
+  if(!mRev) return null;
+  return {idx:mine/mRev, adrBelow:(u.adr?.[d]!=null)?u.adr[d]<adr:false};
+}
+function marketAdr(u){
+  const t=(u.comp&&u.comp.table_data&&u.comp.table_data[0])||null;
+  const med=t?Number(t['50_percentile_price']):Number(u.comp?.median_price);
+  return isFinite(med)&&med>0?med:null;
+}
+function marketRevpan(u,dfd){
+  const adr=marketAdr(u), occ=u.mkt?.[dfd];
+  return (adr==null||occ==null)?null:adr*occ/100;
+}
+
+function revpanCard(u){
+  const f30=u.revpar?.[30], f90=u.revpar?.[90];
+  const t=u.trail||{}, y=u.year||{};
+  if(f90==null&&t.revpar==null) return `<h3>${tip('revpan','RevPAN scorecard')}</h3>
+    <div class="note">PriceLabs hasn't returned revenue figures for this listing. That normally means the metrics call failed,
+    or the listing has too little booking history to compute RevPAN yet.
+    <button class="stage" style="margin-left:6px" onclick="main()">Reload</button></div>`;
+
+  const pct=(a,b)=>(a==null||b==null||!b)?null:Math.round((a-b)/b*100);
+  const vsTrail=pct(f90,t.revpar);
+  const mAdr=marketAdr(u);
+  const mRev90=marketRevpan(u,90);
+  const idx=(f90!=null&&mRev90)?f90/mRev90:null;
+
+  // Which lever moved? RevPAN = occupancy × ADR, so compare both against trailing.
+  const occD=pct(u.cum?.[90],t.occ), adrD=pct(u.adr?.[90],t.adr);
+  let read='';
+  if(vsTrail!=null){
+    if(occD!=null&&adrD!=null){
+      if(occD>5&&adrD<-5) read=`Occupancy is up ${occD}% on the trailing 90 days while rate is down ${Math.abs(adrD)}%. You are buying volume with rate — which is only a win if RevPAN holds, and here it ${vsTrail>=0?'does':'does not'}.`;
+      else if(occD<-5&&adrD>5) read=`Rate is up ${adrD}% but occupancy is down ${Math.abs(occD)}%. Holding out for a higher price; RevPAN says that is ${vsTrail>=0?'working':'costing you'}.`;
+      else if(occD<-5&&adrD<-5) read='Both occupancy and rate are below trailing. That is a demand or listing problem, not a pricing one — check the health diagnostics before touching price.';
+      else if(occD>5&&adrD>5) read='Occupancy and rate are both ahead of trailing. Nothing to fix here.';
+      else read='Occupancy and rate are both close to trailing; RevPAN is moving with the season rather than with your decisions.';
+    }
+  }
+
+  const stlyRows=[30,90,180,360].map(d=>{
+    const mine=u.revpar?.[d], last=u.stlyRevpar?.[d];
+    if(mine==null) return '';
+    const delta=pct(mine,last);
+    const has=last!=null&&last>0;
+    const mr=marketRevpan(u,d), ix=mr?mine/mr:null;
+    return `<tr><td>Next ${d} days</td>
+      <td class="r bignum">${money(mine)}</td>
+      <td class="r bignum muted">${mr?money(mr):'—'}</td>
+      <td class="r bignum ${ix==null?'muted':ix>=1?'s-good':ix>=0.85?'s-warn':'s-bad'}">${ix?ix.toFixed(2)+'×':'—'}</td>
+      <td class="r bignum muted">${has?money(last):'—'}</td>
+      <td class="r bignum ${!has?'muted':delta>=0?'s-good':'s-bad'}">${has?(delta>0?'+':'')+delta+'%':'—'}</td>
+      <td class="r bignum muted">${u.cum?.[d]!=null?u.cum[d].toFixed(0)+'%':'—'}</td>
+      <td class="r bignum muted">${u.adr?.[d]!=null?money(u.adr[d]):'—'}</td></tr>`;
+  }).join('');
+
+  const anyStly=[30,90,180,360].some(d=>u.stlyRevpar?.[d]>0);
+
+  return `<h3>${tip('revpan','RevPAN scorecard')}</h3>
+  <div class="grid">
+    ${idx!=null?`<div class="cell ${idx>=1?'s-good':idx>=0.85?'s-warn':'s-bad'}">
+      <div class="k">${tip('revpanIdx','RevPAN vs market')}</div><div class="v bignum">${idx.toFixed(2)}×</div>
+      <div class="n">${money(f90)} vs market ${money(mRev90)}${idx<1?` — ${Math.round((1-idx)*100)}% behind`:` — ${Math.round((idx-1)*100)}% ahead`}</div></div>`:''}
+    <div class="cell ${vsTrail==null?'':vsTrail>=0?'s-good':'s-bad'}">
+      <div class="k">RevPAN next 90d</div><div class="v bignum">${f90!=null?money(f90):'—'}</div>
+      <div class="n">${vsTrail!=null?`${vsTrail>0?'+':''}${vsTrail}% vs trailing 90d (${money(t.revpar)})`:'no trailing data'}</div></div>
+    <div class="cell"><div class="k">RevPAN next 30d</div><div class="v bignum">${f30!=null?money(f30):'—'}</div>
+      <div class="n">booked so far in the window</div></div>
+    <div class="cell ${occD==null?'':occD>=0?'s-good':'s-warn'}"><div class="k">Occupancy lever</div>
+      <div class="v bignum">${u.cum?.[90]!=null?u.cum[90].toFixed(0)+'%':'—'}</div>
+      <div class="n">${occD!=null?`${occD>0?'+':''}${occD}% vs trailing`:''}</div></div>
+    <div class="cell ${adrD==null?'':adrD>=0?'s-good':'s-warn'}"><div class="k">Rate lever</div>
+      <div class="v bignum">${u.adr?.[90]!=null?money(u.adr[90]):'—'}</div>
+      <div class="n">${adrD!=null?`${adrD>0?'+':''}${adrD}% vs trailing`:''}</div></div>
+    <div class="cell"><div class="k">Trailing 12mo</div><div class="v bignum">${y.revpar!=null?money(y.revpar):'—'}</div>
+      <div class="n">${y.adr!=null?`${money(y.adr)} ADR · ${y.occ!=null?y.occ.toFixed(0)+'%':''}`:''}</div></div>
+  </div>
+  ${read?`<div class="note" style="margin-top:-4px"><strong>What the composite says.</strong> ${esc(read)}</div>`:''}
+  <div class="scroll"><table><thead><tr><th>Window</th><th class="r">Your RevPAN</th><th class="r">Market</th>
+    <th class="r">Index</th><th class="r">Last yr</th><th class="r">Chg</th><th class="r">Occ</th><th class="r">ADR</th></tr></thead><tbody>${stlyRows}</tbody></table></div>
+  ${anyStly?'':`<div class="note">No same-time-last-year figures yet — PriceLabs needs a full year of synced history before this column populates. Until then, judge against the trailing 90 days above.</div>`}
+  ${mAdr?`<div class="note"><strong>How market RevPAN is derived.</strong> PriceLabs publishes market occupancy but not market ADR through this connector,
+    so the comp set's median asking price (${money(mAdr)} across ${u.comp?.n_listings||'—'} ${esc(u.comp?.best_category||'')} listings) stands in for it.
+    Checked against the figure on PriceLabs' own Market Dashboard the two agree closely, but it is an asking price rather than an achieved rate,
+    so treat the index as a good approximation rather than an exact score.</div>`
+    :(()=>{const st=u.enrich&&u.enrich.market;
+       if(!st||st==='pending') return '<div class="note">Market RevPAN is still loading — it needs the comp-set price from the neighbourhood call.</div>';
+       if(st==='ok') return '<div class="note">PriceLabs returned no comp-set pricing for this listing, so market RevPAN can\'t be derived. The figures above are still your own.</div>';
+       return `<div class="note"><strong>Market RevPAN unavailable.</strong> The neighbourhood call failed: ${esc(String(st))}.
+         Everything above is your own performance; only the market comparison is missing.
+         <button class="stage" style="margin-left:6px" onclick="retryEnrich('${u.id}')">Retry</button></div>`;})()}`;
+}
+
+/* ---------- seasonal context ----------
+   PriceLabs labels each month Low / Shoulder / High for that specific market and
+   reports how far ahead it books. Two properties in different markets can be in
+   opposite seasons on the same date, so this is rendered per property. */
+function seasonNow(u){
+  if(!u.seasons||!u.seasons.length) return null;
+  const m=new Date().toLocaleDateString('en-US',{month:'long'});
+  return u.seasons.find(x=>x.month===m)||u.seasons[0];
+}
+function seasonAdvice(u){
+  const s=seasonNow(u); if(!s) return null;
+  const kind=/high/i.test(s.season)?'high':/shoulder/i.test(s.season)?'shoulder':/low/i.test(s.season)?'low':'';
+  const lead=s.bwMax;
+  const w=u.wins.filter(x=>!x.na);
+  const near=w[0], far=w[w.length-1];
+  let line='';
+  if(kind==='low'&&lead!=null&&lead<=10)
+    line=`Low season here and the market books just ${s.bwMin}–${s.bwMax} days out. Only the near window is actionable — anything beyond it hasn't entered its booking window yet, so a soft-looking gap out there is normal rather than a signal.`;
+  else if(kind==='low')
+    line=`Low season. Demand is thin, so protect rate rather than chasing occupancy — a discount here buys bookings the market wasn't going to make anyway.`;
+  else if(kind==='high')
+    line=`High season. This is where the year is made — price to the top of what pace supports, and treat any lag as urgent rather than seasonal.`;
+  else if(kind==='shoulder')
+    line=`Shoulder season, the hardest to read. Pace swings quickly, so act on the near window and re-check weekly rather than making one big move.`;
+  if(near&&far&&kind==='low'&&lead!=null&&lead<=10&&far.gap<-cfgFor(u).gapHold)
+    line+=` The ${far.label} gap looks alarming but is mostly an artefact of the short booking window.`;
+  return {...s,kind,line};
+}
+function seasonStrip(u){
+  if(!u.seasons||!u.seasons.length){
+    const st=u.enrich&&u.enrich.health;
+    if(st==='pending'||!st) return '<div class="note">Loading seasonal context from PriceLabs…</div>';
+    if(st==='ok') return '<div class="note">PriceLabs returned no month-by-month seasonal data for this listing — usually too little synced history.</div>';
+    return `<div class="note"><strong>Seasonal context unavailable.</strong> PriceLabs\' health endpoint failed: ${esc(String(st))}.
+      Booking windows fall back to the fixed ones in Config. <button class="stage" style="margin-left:6px" onclick="retryEnrich('${u.id}')">Retry</button></div>`;
+  }
+  const now=new Date().toLocaleDateString('en-US',{month:'long'});
+  const a=seasonAdvice(u);
+  const cls=k=>k==='high'?'s-good':k==='low'?'s-dead':'s-warn';
+  return `<div class="season">${u.seasons.map(s=>{
+    const k=/high/i.test(s.season)?'high':/low/i.test(s.season)?'low':'shoulder';
+    return `<div class="sm ${s.month===now?'now':''} ${cls(k)}">
+      <div class="mn">${esc(s.month)}${s.month===now?' · now':''}</div>
+      <div class="sv">${esc(s.season||'—')}</div>
+      <div class="sd">${s.bwMin!=null?`books ${s.bwMin}–${s.bwMax}d out`:'&nbsp;'}</div>
+      <div class="sd">${esc(String(s.detail||'').split('·')[0].trim())}</div>
+    </div>`;}).join('')}</div>
+    ${a&&a.line?`<div class="note" style="margin-top:-6px"><strong>${esc(a.month)} · ${esc(a.season)}.</strong> ${esc(a.line)}</div>`:''}`;
+}
+
+/* ---------- minimum-stay recommendation ----------
+   Rules, not judgement: orphan gaps need 1 night, near-term and lagging dates
+   want short minimums to catch what's left, strong weekends can carry a longer
+   one. Where none of that applies, PriceLabs' own figure stands. */
+function recMinStay(u,d,orphanSet){
+  const CFG=cfgFor(u);   // shadow global with the property's effective profile
+  const pl = d.min_stay!=null ? Number(d.min_stay) : 1;
+  if(d.booking_status||d.unbookable) return null;
+  const off=(new Date(d.date+'T12:00:00')-Date.now())/864e5;
+
+  if(orphanSet.has(d.date))
+    return {n:1,why:'This sits in a 1–2 night gap between bookings. Only a single-night stay can fill it, so any minimum above 1 guarantees it goes empty.'};
+
+  if(off<=CFG.msLastMinuteDays && pl>CFG.msLastMinuteCap)
+    return {n:CFG.msLastMinuteCap,why:`Inside ${CFG.msLastMinuteDays} days with a ${pl}-night minimum. Late bookers travel short — this is likely blocking more demand than the price is.`};
+
+  const w=u.wins.find(x=>!x.na && off>x.from && off<=x.to);
+  const dow=new Date(d.date+'T12:00:00').getDay();
+  const weekend=dow===5||dow===6;
+
+  if(w && w.gap<=-CFG.gapHold && pl>CFG.msLagCap)
+    return {n:CFG.msLagCap,why:`Pace is ${Math.abs(w.gap).toFixed(0)} pts behind market in this window and the minimum is ${pl} nights. Shorten it before cutting price — minimums block bookings that discounts can't win back.`};
+
+  if(w && w.gap>=CFG.gapHold && weekend && pl<CFG.msWeekendMin)
+    return {n:CFG.msWeekendMin,why:`Strong weekend — you're ${w.gap.toFixed(0)} pts ahead of market here. A 2-night minimum stops a single Saturday booking stranding the Friday next to it.`};
+
+  return {n:pl,why:'Nothing suggests overriding PriceLabs here — their figure already fits the demand and your pace.'};
+}
+
+function setCalDays(n){
+  const v = n!=null ? n : Number((document.getElementById('caldays')||{}).value||45);
+  CAL_DAYS=Math.max(1,Math.min(CAL_HORIZON,Math.round(v)||45));
+  localStorage.setItem('rm_caldays',CAL_DAYS);
+  document.getElementById('v-cal').innerHTML=calView();
+}
+function jumpSurge(id){
+  const u=byId(id); const now=Date.now();
+  const next=Object.keys(u.surge||{}).filter(k=>new Date(k+'T12:00:00')>now).sort()[0];
+  if(!next){alert('No surge dates ahead in the loaded range.');return}
+  const off=Math.ceil((new Date(next+'T12:00:00')-now)/864e5)+3;
+  // A surge night already at its target price would be hidden by the filter,
+  // so the jump would scroll to a row that isn't rendered.
+  if(ONLY.cal){ ONLY.cal=false; localStorage.setItem('rm_only',JSON.stringify(ONLY));
+    toast('Filter switched off so the surge night is visible.','OK',()=>{}); }
+  if(off>CAL_DAYS) setCalDays(off); else document.getElementById('v-cal').innerHTML=calView();
+  setTimeout(()=>{
+    const rows=[...document.querySelectorAll('#v-cal tr.row-surge')];
+    if(rows[0]) rows[0].scrollIntoView({behavior:'smooth',block:'center'});
+  },80);
+}
+/* Per-night price recommendation, from the same rules as the window actions:
+   pace gap sets the direction, orphans override it, surge dates add a premium. */
+function recPrice(u,d,orphanSet){
+  const CFG=cfgFor(u);
+  if(d.booking_status||d.unbookable) return null;
+  const off=(new Date(d.date+'T12:00:00')-Date.now())/864e5;
+  const anchor=d.anchor;
+  const sg=(u.surge||{})[d.date];
+  const w=u.wins.find(x=>!x.na&&off>x.from&&off<=x.to);
+
+  // Target is a position relative to PriceLabs' own number, not a nudge off
+  // wherever you happen to be. Pushing the same recommendation twice is a no-op.
+  let pct=0, parts=[];
+  if(orphanSet.has(d.date)){
+    pct=-CFG.orphanDiscount;
+    parts.push(`orphan night — ${CFG.orphanDiscount}% below PriceLabs to make a 1-night stay worth taking`);
+  } else {
+    if(w&&w.d.pct){ pct+=w.d.pct; parts.push(`${w.d.pct>0?'+':''}${w.d.pct}% for ${w.label} pace (${w.gap>=0?'+':''}${w.gap.toFixed(0)} pts vs market)`); }
+    if(sg){ pct+=CFG.surgeUpliftPct; parts.push(`+${CFG.surgeUpliftPct}% surge premium — the market lifts here`); }
+  }
+  const wanted=Math.max(1,Math.round(anchor*(1+pct/100)));
+  let p=wanted, clamp=null;
+  if(u.min!=null&&p<u.min){ p=Math.round(u.min); clamp='floor'; }
+  if(u.max!=null&&p>u.max){ p=Math.round(u.max); clamp='ceiling'; }
+
+  // "Already done" has to mean the price wouldn't move. Comparing target
+  // percentages instead misses the case where your floor or ceiling clamps the
+  // result back onto the current price — a real no-op that still looked like a change.
+  const cur=Math.round(d.eff);
+  let already=Math.abs(p-cur)<1;
+
+  // Nights you set by hand inside the cooling period, from before anchors were
+  // pinned: we don't know what they were priced from, so leave them alone
+  // rather than recommend a fresh cut off a recomputed figure.
+  const ov=u.ovr&&u.ovr[d.date];
+  const hit=!d.pinned&&!already&&ov&&ov.price_type==='fixed'&&actedOn(`${u.id}:day:${d.date}`);
+  if(hit){
+    const days=Math.max(0,Math.ceil(((CFG.coolDays||7)*864e5-(Date.now()-hit.ts))/864e5));
+    return {p:cur,pct,anchor,already:true,clamp:null,wanted,cooling:true,
+      why:`You set this night to ${money(cur)} on ${new Date(hit.ts).toLocaleDateString()}. Holding it for ${days} more day${days===1?'':'s'} so a refresh doesn't stack another change on top.`};
+  }
+
+  const clampNote=clamp==='floor'
+    ? `The rules want ${money(wanted)}, but your ${money(u.min)} floor holds it there.`
+    : clamp==='ceiling'
+    ? `The rules want ${money(wanted)}, but your ${money(u.max)} ceiling caps it.`
+    : '';
+  const basis=parts.length
+    ? `Target ${pct>0?'+':''}${pct}% vs PriceLabs' ${money(anchor)} — ${parts.join('; ')}.`
+    : `Pace is inside the hold band and nothing marks this date out.`;
+  const drift=d.pinned&&Math.abs(d.anchorLive-anchor)>=1
+    ? ` PriceLabs has since recomputed its own number to ${money(d.anchorLive)}; this holds the ${money(anchor)} you priced from, so a refresh can't walk your price ${d.anchorLive<anchor?'down':'up'}.`
+    : '';
+  const pos=`You're currently ${d.vsAnchor>0?'+':''}${d.vsAnchor}% vs PriceLabs' ${money(anchor)}.${drift}`;
+
+  const why=already
+    ? (clamp
+        ? `Nothing to change — ${clampNote.toLowerCase()} That's where this night already sits.`
+        : `Already at ${money(cur)}. ${basis} Pushing would change nothing.`)
+    : `${basis} ${clampNote} ${pos}`.replace(/\s+/g,' ').trim();
+
+  return {p,pct,anchor,already,clamp,wanted,why};
+}
+/* How much is PriceLabs already discounting this night, before you touch it?
+   `uncustomized_price` is the pre-adjustment figure, so the gap between that
+   and the live price is the discount their engine has already applied. */
+/* How far below PriceLabs' base this night already sits. The connector can't
+   separate their adjustments from your override, so this is the combined gap —
+   the warning wording says so rather than blaming PriceLabs for your own cut. */
+function existingDiscount(d){
+  const raw=Number(d.uncustomized_price);
+  if(!raw||raw<=0||d.eff==null) return 0;
+  return Math.max(0,Math.round((raw-d.eff)/raw*100));
+}
+const discountIsYours=(u,d)=>!!(u.ovr[d.date]&&u.ovr[d.date].price);
+function stackCheck(u,nights,pct){
+  const C=cfgFor(u);
+  if(!(pct<0)) return null;                       // only cuts can stack
+  const hits=nights.map(d=>({d,x:existingDiscount(d)})).filter(x=>x.x>=C.stackWarnPct);
+  if(!hits.length) return null;
+  const worst=hits.reduce((a,b)=>b.x>a.x?b:a);
+  const avg=Math.round(hits.reduce((s,h)=>s+h.x,0)/hits.length);
+  const mine=hits.filter(h=>discountIsYours(u,h.d)).length;
+  const src=mine===hits.length?'your own overrides'
+    : mine===0?'PriceLabs\' own adjustments'
+    : `PriceLabs' adjustments and your overrides combined (${mine} of ${hits.length} are yours)`;
+  return {n:hits.length,avg,worst,
+    text:`${hits.length} of these ${nights.length} nights already sit ${avg}% below PriceLabs' base price on average, from ${src} `+
+         `(worst: ${fmtD(worst.d.date)} at ${worst.x}% below ${money(Number(worst.d.uncustomized_price))}). `+
+         `Cutting a further ${Math.abs(pct)}% compounds that — roughly ${avg+Math.abs(pct)}% below base in total.`};
+}
+
+/* ---------- stage button state ----------
+   idle: nothing to apply · ready: a change is pending your click · staged: in the tray */
+const isStaged=key=>PENDING.some(p=>p.key===key);
+function bulkState(u,kind){ return isStaged(`${u.id}:${kind}`)?'staged':''; }
+
+function dayState(u,date){
+  if(isStaged(`${u.id}:day:${date}`)) return 'staged';
+  const d=u.days.find(x=>x.date===date);
+  if(!d||d.booking_status||d.unbookable) return 'idle';
+  const gv=id=>{const e=document.getElementById(id);return e&&e.value!==''?Math.round(+e.value):null};
+  const np=gv(`dp-${u.id}-${date}`), ns=gv(`ds-${u.id}-${date}`);
+  const curMs=(u.ovr[date]&&u.ovr[date].min_stay!=null)?Number(u.ovr[date].min_stay):(d.min_stay??1);
+  const changed=(np!==null&&np!==Math.round(d.eff))||(ns!==null&&ns!==curMs);
+  return changed?'ready':'idle';
+}
+function refreshDayBtn(uid,date){
+  const b=document.getElementById(`db-${uid}-${date}`); if(!b) return;
+  const u=byId(uid); if(!u) return;
+  const st=dayState(u,date);
+  b.disabled = st==='idle';
+  b.className = 'stage day-btn'+(st==='ready'?' ready':st==='staged'?' staged':'');
+  b.textContent = st==='staged'?'Staged':'Stage';
+  b.title = st==='idle'
+    ? 'Enter a new price or minimum stay — or click a recommendation — to enable this.'
+    : st==='staged' ? 'Staged. Click again to take it back out of the queue.'
+    : 'Add this change to the staging tray.';
+  refreshStageAll(uid);        // the row changed, so the Stage-all count changed too
+}
+
+/* Stage-all reflects how many rows are currently 'ready'. Kept separate from
+   refreshAllDayBtns so a single keystroke can update it without re-walking
+   every row's state. */
+function refreshStageAll(uid){
+  const sa=document.getElementById('stageall-'+uid); if(!sa) return;
+  const u=byId(uid); if(!u) return;
+  let ready=0;
+  document.querySelectorAll('.day-btn').forEach(b=>{
+    const m=b.id.match(/^db-(.+)-(\d{4}-\d{2}-\d{2})$/);
+    if(m&&m[1]===uid&&dayState(u,m[2])==='ready') ready++;
+  });
+  sa.disabled = ready===0;
+  sa.textContent = ready?`Stage all ${ready} edit${ready>1?'s':''}`:'Stage all';
+  sa.className = 'stage'+(ready?' ready':'');
+  sa.title = ready?`Stage every night where you've entered a change (${ready})`
+    :"Nothing entered yet. Type a price or minimum stay, or click a recommendation.";
+}
+function refreshAllDayBtns(){
+  const seen=new Set();
+  document.querySelectorAll('.day-btn').forEach(b=>{
+    const m=b.id.match(/^db-(.+)-(\d{4}-\d{2}-\d{2})$/);
+    if(!m) return;
+    seen.add(m[1]);
+    refreshDayBtn(m[1],m[2]);
+  });
+  seen.forEach(refreshStageAll);
+}
+
+/* Clicking a staged row takes it back out of the queue. */
+function toggleDay(uid,date){
+  const key=`${uid}:day:${date}`;
+  const existing=PENDING.find(p=>p.key===key);
+  if(existing){ unstage(existing.pid); return; }
+  stageDay(byId(uid),date);
+}
+
+function stageAllReady(uid){
+  const u=byId(uid); if(!u) return;
+  const dates=[];
+  document.querySelectorAll('.day-btn').forEach(b=>{
+    const m=b.id.match(/^db-(.+)-(\d{4}-\d{2}-\d{2})$/);
+    if(m&&m[1]===uid&&dayState(u,m[2])==='ready') dates.push(m[2]);
+  });
+  if(!dates.length){ alert('Nothing entered yet.'); return; }
+  dates.forEach(dt=>{ try{ stageDay(u,dt,true) }catch(e){} });
+  syncButtons();
+}
+
+function applyPrice(uid,date,p){
+  const el=document.getElementById(`dp-${uid}-${date}`);
+  if(el){ el.value=p; el.focus(); refreshDayBtn(uid,date); }
+}
+function stageRecPrices(u){
+  const orphanSet=new Set(u.orphans.flatMap(o=>o.dates));
+  const now=Date.now();
+  const rows=u.days.filter(d=>{
+    if(d.booking_status||d.unbookable)return false;
+    if((new Date(d.date+'T12:00:00')-now)/864e5>CAL_DAYS)return false;
+    const r=recPrice(u,d,orphanSet);
+    return r&&!r.already;
+  });
+  if(!rows.length){alert('Every open night in view is already at its target position versus PriceLabs.');return}
+  const overrides=rows.map(d=>({date:d.date,price:String(recPrice(u,d,orphanSet).pct),price_type:'percent'}));
+  const avgOld=rows.reduce((s,d)=>s+d.eff,0)/rows.length;
+  const avgNew=rows.reduce((s,d)=>s+recPrice(u,d,orphanSet).p,0)/rows.length;
+  stage({unit:u.name,uid:u.id,key:`${u.id}:recprices`,
+    desc:`Apply recommended prices on ${rows.length} night${rows.length>1?'s':''}`,
+    change:`avg ${money(avgOld)} → ${money(avgNew)}`,
+    pins:rows.map((d,i)=>({date:d.date,anchor:d.anchor,price:Number(overrides[i].price),type:'percent'})),
+    run:()=>call('update_listing_date_overrides',{listing_id:u.id,pms:u.pms,overrides})});
+}
+
+/* PriceLabs' full factor breakdown (seasonality %, last-minute discount, etc.)
+   exists in their Customer API but the MCP connector's get_listing_prices does
+   not accept the `reason` flag, so it can't be reached from here. The Live vs
+   PL base gap is the closest available signal. */
+function reasonText(){ return ''; }
+
+function applyMs(uid,date,n){
+  const el=document.getElementById(`ds-${uid}-${date}`);
+  if(el){ el.value=n; el.focus(); refreshDayBtn(uid,date); }
+}
+function stageRecMs(u){
+  const CFG=cfgFor(u);
+  const orphanSet=new Set(u.orphans.flatMap(o=>o.dates));
+  const now=Date.now();
+  const changes=u.days.filter(d=>{
+    if(d.booking_status||d.unbookable)return false;
+    if((new Date(d.date+'T12:00:00')-now)/864e5>CAL_DAYS)return false;
+    const r=recMinStay(u,d,orphanSet);
+    const cur=(u.ovr[d.date]&&u.ovr[d.date].min_stay!=null)?Number(u.ovr[d.date].min_stay):(d.min_stay??1);
+    return r && r.n!==cur;
+  });
+  if(!changes.length){alert('Every open night in the next 45 days already matches the recommendation.');return}
+  const overrides=changes.map(d=>({date:d.date,min_stay:recMinStay(u,d,orphanSet).n}));
+  stage({unit:u.name,uid:u.id,key:`${u.id}:recms`,
+    desc:`Apply recommended minimum stays on ${changes.length} night${changes.length>1?'s':''}`,
+    change:changes.slice(0,6).map(d=>`${fmtD(d.date)}→${recMinStay(u,d,orphanSet).n}`).join(', ')+(changes.length>6?` +${changes.length-6} more`:''),
+    run:()=>call('update_listing_date_overrides',{listing_id:u.id,pms:u.pms,overrides})});
+}
+
+/* ---------- calendar ---------- */
+function calView(){
+  const V=vis(); if(!V.length)return emptyState();
+  if(!CAL_SEL||!V.find(u=>u.id===CAL_SEL))CAL_SEL=V[0].id;
+  const u=V.find(x=>x.id===CAL_SEL);
+  const sel=`<select onchange="CAL_SEL=this.value;document.getElementById('v-cal').innerHTML=calView()">
+    ${V.map(x=>`<option value="${x.id}"${x.id===CAL_SEL?' selected':''}>${esc(x.name)}</option>`).join('')}</select>`;
+
+  const now=Date.now();
+  const soon=u.days.filter(d=>(new Date(d.date+'T12:00:00')-now)/864e5<=CAL_DAYS);
+  const stale=u.refreshed?Math.round((Date.now()-new Date(u.refreshed))/36e5):null;
+  const orphanSet=new Set(u.orphans.flatMap(o=>o.dates));
+  const surgeN=soon.filter(d=>(u.surge||{})[d.date]).length;
+  const recPriceDiff=soon.filter(d=>{
+    if(d.booking_status||d.unbookable)return false;
+    const r=recPrice(u,d,orphanSet); return r&&!r.already;
+  }).length;
+  const recDiff=soon.filter(d=>{
+    if(d.booking_status||d.unbookable)return false;
+    const r=recMinStay(u,d,orphanSet);
+    const c=(u.ovr[d.date]&&u.ovr[d.date].min_stay!=null)?Number(u.ovr[d.date].min_stay):(d.min_stay??1);
+    return r&&r.n!==c;
+  }).length;
+
+  const shownNights=ONLY.cal?soon.filter(d=>nightActionable(u,d,orphanSet)):soon;
+  const rows=shownNights.map(d=>{
+    const bk=!!d.booking_status||!!d.unbookable;
+    const o=u.ovr[d.date];
+    const pinned=u.min!=null&&d.price<=u.min+0.5;
+    const dow=new Date(d.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'});
+    const oms=o&&o.min_stay!=null?Number(o.min_stay):null;
+    const longMs=oms!=null&&d.min_stay!=null&&oms>d.min_stay;
+    // One column for min stay: your override when set, PriceLabs' figure otherwise.
+    const msCell = oms!=null
+      ? `<span class="ovr" style="${longMs?'background:#fef3c7;color:#a16207':''}">${oms}</span>`
+        + (d.min_stay!=null?` <span class="muted tiny">/ ${d.min_stay}</span>`:'')
+      : `<span class="muted">${d.min_stay??'—'}</span>`;
+    const rsn = reasonText(u,d);
+    const exd = existingDiscount(d);
+    const rp = bk?null:recPrice(u,d,orphanSet);
+    const rpDelta = rp&&d.eff>0 ? Math.round((rp.p-d.eff)/d.eff*100) : 0;
+    const rpCell = !rp ? '<span class="muted">—</span>'
+      : rp.already ? `<span class="muted" title="${esc(rp.why)}">${money(rp.p)}${rp.clamp?` <span class="pill mini p-hold">${rp.clamp==='floor'?'FLR':'CAP'}</span>`:''}</span>`
+      : `<button class="stage rec ${rp.p<d.eff?'rec-cut':'rec-raise'}" title="${esc(rp.why)} — click to fill the input"
+           onclick="applyPrice('${u.id}','${d.date}',${rp.p})">${money(rp.p)} ${rp.p<d.eff?'↓':'↑'}${Math.abs(rpDelta)}%</button>`;
+    const cur = oms!=null?oms:(d.min_stay??1);
+    const rec = recMinStay(u,d,orphanSet);
+    const recCell = !rec ? '<span class="muted">—</span>'
+      : rec.n===cur ? `<span class="muted" title="Nothing to change — this night is already at ${rec.n} night${rec.n===1?'':'s'}. ${esc(rec.why)}">${rec.n}</span>`
+      : `<button class="stage rec ${rec.n<cur?'rec-cut':'rec-raise'}" title="${esc(rec.why)} — click to fill the input"
+           onclick="applyMs('${u.id}','${d.date}',${rec.n})">${rec.n} ${rec.n<cur?'↓':'↑'}</button>`;
+    const sg=(u.surge||{})[d.date];
+    const hiDemand=/high demand/i.test(d.demand_desc||'');
+    const goodDemand=/good demand/i.test(d.demand_desc||'');
+    let tags='';
+    if(sg) tags+=`<span class="pill mini p-surge" title="${sg.type==='price'?'Surge — market prices spike here versus surrounding dates':sg.type==='demand'?'Surge — market occupancy spikes here versus surrounding dates':sg.type==='both'?'Surge — both market price and occupancy spike here':'Surge — inside a market surge window PriceLabs flagged'}">S</span>`;
+    if(hiDemand) tags+=`<span class="pill mini p-cut" title="High demand — PriceLabs rates demand as High for this night">H</span>`;
+    else if(goodDemand&&!sg) tags+=`<span class="pill mini p-watch" title="Good demand — PriceLabs rates demand as Good for this night">G</span>`;
+    if(orphanSet.has(d.date)) tags+=`<span class="pill mini p-hold" title="Orphan — a 1–2 night gap between bookings. Price it to move.">O</span>`;
+    return `<tr class="${bk?'booked':''} ${sg?'row-surge':''}">
+      <td>${fmtD(d.date)} <span class="muted tiny">${dow}</span>${tags}</td>
+      <td data-l="PriceLabs" class="r bignum"${rsn?` title="${esc(rsn)}" style="cursor:help;border-bottom:1px dotted #a1a1aa"`:''}>${money(d.price)}${pinned&&!bk?' <span class="pill mini p-watch">FLR</span>':''}</td>
+      <td data-l="Pre-adj." class="r bignum ${exd>=cfgFor(u).stackWarnPct?'s-warn':'muted'}"${exd?` title="PriceLabs is already ${exd}% below this pre-adjustment rate on this night"`:''}>${d.uncustomized_price>0?money(d.uncustomized_price):'—'}${exd>=cfgFor(u).stackWarnPct?` <span class="pill mini p-watch">-${exd}%</span>`:''}</td>
+      <td data-l="On channel" class="r bignum muted"${d.user_price>0&&Math.abs(d.user_price-d.price)>1?` title="What's currently live on the channel. It differs from the Live price above, which means PriceLabs hasn't pushed the change yet."`:''}>${d.user_price>0?money(d.user_price)+(Math.abs(d.user_price-d.price)>1?' <span class="pill mini p-watch">lag</span>':''):'—'}</td>
+      <td data-l="Your override" class="r">${o&&o.price?`<span class="ovr">${o.price_type==='fixed'?money(Number(o.price)):(Number(o.price)>0?'+':'')+o.price+'%'}</span>`:'<span class="muted">—</span>'}${!bk&&d.vsAnchor?`<div class="tiny ${Math.abs(d.vsAnchor)>=10?(d.vsAnchor>0?'up':'down'):'muted'}" title="Your effective price versus PriceLabs' own number for this night">${d.vsAnchor>0?'+':''}${d.vsAnchor}% vs PL</div>`:''}</td>
+      <td data-l="Recommended" class="r">${rpCell}</td>
+      <td data-l="Min stay" class="r">${msCell}</td>
+      <td data-l="Rec. stay" class="r">${bk?'<span class="muted">—</span>':recCell}</td>
+      <td data-l="New price">${bk?`<span class="tiny">${esc(d.booking_status||'blocked')}</span>`
+        :`<input type="number" id="dp-${u.id}-${d.date}" placeholder="${Math.round(d.eff)}" style="width:70px" oninput="refreshDayBtn('${u.id}','${d.date}')">`}</td>
+      <td data-l="New stay">${bk?'':`<input type="number" id="ds-${u.id}-${d.date}" placeholder="${d.min_stay??1}" style="width:48px" oninput="refreshDayBtn('${u.id}','${d.date}')">`}</td>
+      <td data-l="">${bk?'':`<button class="stage day-btn" id="db-${u.id}-${d.date}" onclick="toggleDay('${u.id}','${d.date}')" disabled>Stage</button>`}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="card">
+    <div class="chead"><div><h2>${esc(u.name)}</h2>
+      <div class="tiny muted">${shownNights.length} night${shownNights.length===1?'':'s'} shown${ONLY.cal&&soon.length!==shownNights.length?` of ${soon.length}`:''} · booked rows are locked · ${u.ovrN} override${u.ovrN===1?'':'s'} committed${surgeN?` · <strong style="color:#a16207">${surgeN} surge night${surgeN===1?'':'s'}</strong>`:''}</div></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        ${onlyToggle('cal',shownNights.length,soon.length,'nights')}
+        <button class="stage bulk-btn ${bulkState(u,'recprices')}" data-key="${u.id}:recprices" data-done="Prices staged" onclick="stageRecPrices(byId('${u.id}'))" ${recPriceDiff?'':'disabled'}
+          title="${recPriceDiff?`Stage the recommended price on ${recPriceDiff} night${recPriceDiff>1?'s':''}`:'Every open night in view is already at its target position versus PriceLabs'}">
+          ${bulkState(u,'recprices')==='staged'?'Prices staged':recPriceDiff?`Apply ${recPriceDiff} price rec${recPriceDiff>1?'s':''}`:'Prices on target'}</button>
+        <button class="stage bulk-btn ${bulkState(u,'recms')}" data-key="${u.id}:recms" data-done="Min stays staged" onclick="stageRecMs(byId('${u.id}'))" ${recDiff?'':'disabled'}
+          title="${recDiff?`Stage the recommended minimum stay on ${recDiff} night${recDiff>1?'s':''}`:'Every open night in view already matches the recommended minimum stay'}">
+          ${bulkState(u,'recms')==='staged'?'Min stays staged':recDiff?`Apply ${recDiff} min-stay rec${recDiff>1?'s':''}`:'Min stays on target'}</button>
+        ${sel}</div></div>
+    ${seasonStrip(u)}
+    <div class="ctl" style="margin-bottom:12px">
+      <label class="f">Show next
+        <span style="display:flex;gap:5px;align-items:center">
+          <input type="number" id="caldays" value="${CAL_DAYS}" min="1" max="${CAL_HORIZON}" style="width:76px">
+          <span class="tiny muted" style="text-transform:none;font-weight:400">nights</span>
+        </span></label>
+      <button onclick="setCalDays()">Apply</button>
+      <span style="display:flex;gap:5px;flex-wrap:wrap">
+        ${[30,45,90,180,365].map(n=>`<button class="stage${CAL_DAYS===n?' on':''}" onclick="setCalDays(${n})">${n}</button>`).join('')}
+      </span>
+      ${surgeN?`<button class="stage" onclick="jumpSurge('${u.id}')">Jump to next surge</button>`:''}
+
+      <span class="tiny muted">Data loaded ${CAL_HORIZON} days out</span>
+    </div>
+    ${stale!=null&&stale>18?`<div class="warnbox"><strong>PriceLabs last recomputed this calendar ${stale>48?Math.round(stale/24)+' days':stale+' hours'} ago.</strong>
+      The <em>PriceLabs price</em> column reflects that snapshot, so a change you pushed since then won't show there yet — check the <em>Your override</em> column instead, which reads live.
+      <button class="stage" style="margin-left:6px" onclick="stageRefresh(byId('${u.id}'))">Stage a recompute</button></div>`:''}
+    <div class="scroll cal tall"><table><thead><tr>
+      <th>${tip('pills','Date')}</th>
+      <th class="r">${tip('plprice','Live')}</th>
+      <th class="r">${tip('raw','PL base')}</th>
+      <th class="r">${tip('channel','On channel')}</th>
+      <th class="r">${tip('ovr','Your override')}</th>
+      <th class="r">${tip('priceRec','Rec. price')}</th>
+      <th class="r">${tip('ovrMs','Min stay')}</th>
+      <th class="r">${tip('msRec','Rec.')}</th>
+      <th colspan="2" style="text-align:center;border-left:1px solid #e4e4e7">Set new</th>
+      <th style="text-align:right"><button class="stage" id="stageall-${u.id}" onclick="stageAllReady('${u.id}')" disabled
+        title="Stage every night where you've entered a change">Stage all</button></th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+    ${shownNights.length?'':`<div class="note" style="text-align:center">
+      <strong>Every night in view is already where it should be.</strong>
+      No price or minimum-stay change is recommended across these ${soon.length} nights.
+      Switch the filter off to see them anyway.</div>`}
+    <div class="note"><strong>Reading this table.</strong> <em>Live</em> is the final rate after everything, including your own overrides — once you override a night this shows your number, not PriceLabs'.
+      <em>PL base</em> is PriceLabs' figure before their adjustments and before yours; your changes never move it, which is why recommendations are measured against it.
+      <em>On channel</em> is what PriceLabs last saw on Airbnb or Vrbo — a persistent gap means the change hasn't synced.
+      The difference between Live and PL base is PriceLabs' own adjustments plus your override combined; the connector doesn't expose them separately.
+      <em>Your override</em> is what you've committed — anything there is live in PriceLabs.
+      <em>Min stay</em> shows PriceLabs' figure in grey; once you set an override it shows yours in blue with theirs after the slash.</div>
+  </div>`;
+}
+
+/* ---------- AI diagnostics ---------- */
+const COLORMAP={Red:'p-cut',Yellow:'p-watch',Green:'p-raise',Blue:'p-raise'};
+async function runHealth(id){
+  const u=byId(id),box=document.getElementById('diag-'+id);
+  box.innerHTML='<div class="note">Asking PriceLabs…</div>';
+  try{
+    const r=await call('get_listing_health_and_recommendations',{listing_id:u.id,pms_name:u.pms,question:'How is this listing performing and what should I improve?'});
+    const d=r.data?.data||{},h=d.heading_section||{};
+    const rows=(d.market_section||[]).map(s=>`<tr><td><strong>${esc(s[0])}</strong></td><td>${(s.slice(1)||[]).map(esc).join('<br>')}</td></tr>`).join('');
+    const rec=d.recommendation_section;
+    const recHtml=(rec&&Object.keys(rec).length)
+      ?'<h3>PriceLabs suggests</h3>'+Object.entries(rec).map(([k,v])=>`<div class="act md"><div class="t">${esc(v.header||k)}</div><div class="w">${esc(v.text||JSON.stringify(v))}</div></div>`).join('')
+      :'<div class="note">PriceLabs has no specific setting changes queued for this listing right now.</div>';
+    box.innerHTML=`<div class="card" style="margin-top:12px">
+      ${h.flag?`<div class="chead"><div><h2>${esc(h.flag)}</h2>${h.text?`<div class="tiny muted" style="max-width:62ch">${esc(h.text)}</div>`:''}</div>
+        <span class="pill ${COLORMAP[h.color]||'p-hold'}">${esc(h.color||'—')}</span></div>`:''}
+      ${rows?`<div class="scroll"><table><thead><tr><th>Period</th><th>What PriceLabs sees</th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
+      ${recHtml}</div>`;
+  }catch(e){box.innerHTML=`<div class="err">PriceLabs could not run this: ${esc(e.message)}</div>`}
+}
+/* Strip the inline HTML PriceLabs wraps its highlighted numbers in. */
+const plainInsight=s=>String(s||'')
+  .replace(/<span[^>]*children="([^"]*)"[^>]*\/>/g,'$1')
+  .replace(/<[^>]+>/g,'')
+  .replace(/\*\*/g,'')
+  .split('\n').map(l=>l.trim()).filter(Boolean);
+
+async function runMarket(id){
+  const u=byId(id),box=document.getElementById('diag-'+id);
+  box.innerHTML='<div class="note">Pulling neighbourhood data…</div>';
+  try{
+    const r=await call('get_neighbourhood_data',{listing_id:u.id,pms_name:u.pms,
+      include_competitors:true,question:'how am I positioned against my comp set'});
+    const d=r.data?.data||{};
+    const s=d.summary_table||{};
+    const t=(s.table_data||[])[0]||{};
+    const yours=u.adr[90]??u.base;
+    const band=(p)=>yours==null?'':yours<t['25_percentile_price']?'below the bottom quartile'
+      :yours<t['50_percentile_price']?'in the lower half':yours<t['75_percentile_price']?'in the upper half':'in the top quartile';
+    const pct=v=>v!=null?money(v):'—';
+    box.innerHTML=`<div class="card" style="margin-top:12px">
+      <div class="chead"><div><h2>Comp set — ${esc(s.best_category||'')}</h2>
+        <div class="tiny muted">${s.n_listings??'—'} comparable listings in your neighbourhood</div></div></div>
+      <div class="grid">
+        <div class="cell"><div class="k">25th pct</div><div class="v bignum">${pct(t['25_percentile_price'])}</div></div>
+        <div class="cell"><div class="k">Median</div><div class="v bignum">${pct(t['50_percentile_price'])}</div></div>
+        <div class="cell"><div class="k">75th pct</div><div class="v bignum">${pct(t['75_percentile_price'])}</div></div>
+        <div class="cell"><div class="k">90th pct</div><div class="v bignum">${pct(t['90_percentile_price'])}</div></div>
+        <div class="cell ${yours!=null&&yours<t['25_percentile_price']?'s-warn':''}">
+          <div class="k">Your ADR</div><div class="v bignum">${yours!=null?money(yours):'—'}</div>
+          <div class="n">${band()}</div></div>
+      </div>
+      <div class="note"><strong>These percentiles blend the whole year.</strong> In a market with a deep summer trough they'll read high against an August rate — use the seasonal notes below for a like-for-like comparison.</div>
+      <h3>Price positioning</h3>
+      <ul style="margin:0 0 4px;padding-left:18px">${plainInsight(d.fp_insights?.insight).slice(1).map(l=>`<li>${esc(l.replace(/^[-•]\s*/,''))}</li>`).join('')}</ul>
+      <h3>Demand &amp; seasonality</h3>
+      <ul style="margin:0;padding-left:18px">${plainInsight(d.occ_insights?.insight).slice(1).map(l=>`<li>${esc(l.replace(/^[-•]\s*/,''))}</li>`).join('')}</ul>
+      <div class="note">PriceLabs doesn't expose individual competitor listings through this connector — only the aggregated comp set above. For unit-by-unit comparison you'd need the Comp Set view in the PriceLabs web dashboard.</div>
+    </div>`;
+  }catch(e){ box.innerHTML=`<div class="err">Couldn't load neighbourhood data: ${esc(e.message)}</div>`; }
+}
+
+async function runDiagnose(id){
+  const u=byId(id),box=document.getElementById('diag-'+id);
+  box.innerHTML='<div class="note">Running deep diagnosis…</div>';
+  try{
+    const r=await call('diagnose_no_bookings',{listing_id:u.id,pms_name:u.pms,
+      question:"Why isn't this listing getting bookings?"});
+    const d=r.data?.data||{};
+    // d.result is the written answer, d.reccomendations a newline list, d.actions a
+    // status map. d.context_string is PriceLabs' internal prompt — never render it.
+    const md=t=>esc(String(t||''))
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g,'<em>$1</em>')
+      .split(/\n\s*\n/).map(p=>`<p style="margin:0 0 10px">${p.replace(/\n/g,'<br>')}</p>`).join('');
+    const recs=String(d.reccomendations||'').split('\n').map(x=>x.replace(/^\d+\.\s*/,'').trim()).filter(Boolean);
+
+    // Flatten the actions map into flagged / clear
+    const flat=[];
+    const walk=(o,prefix='')=>Object.entries(o||{}).forEach(([k,v])=>{
+      if(v&&typeof v==='object'&&'status' in v) flat.push({k:prefix+k,status:v.status,value:v.value});
+      else if(v&&typeof v==='object') walk(v,'');
+    });
+    walk(d.actions);
+    const flagged=flat.filter(x=>x.status==='Y');
+    const label=k=>k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+
+    box.innerHTML=`<div class="card" style="margin-top:12px">
+      <div class="chead"><div><h2>Why isn't this booking?</h2>
+        <div class="tiny muted">PriceLabs diagnostic${d.confidence!=null?` · confidence ${d.confidence}`:''}</div></div></div>
+      ${d.result?`<div style="font-size:13.5px">${md(d.result)}</div>`:''}
+      ${recs.length?`<h3>What PriceLabs suggests</h3>${recs.map(x=>
+        `<div class="act md"><div class="w">${esc(x)}</div></div>`).join('')}`:''}
+      ${flagged.length?`<h3>Settings it flagged</h3>
+        <div class="scroll"><table><tbody>${flagged.map(x=>
+          `<tr><td>${esc(label(x.k))}</td><td class="r"><span class="pill p-watch">flagged</span></td></tr>`).join('')}
+        </tbody></table></div>
+        <div class="note">Flagged means this setting is customised away from PriceLabs' default and may be affecting your prices. Not necessarily wrong — just worth a look.</div>`
+        :'<div class="note">No pricing settings flagged as non-default.</div>'}
+      <div class="note"><strong>Note on the date range.</strong> This tool picks its own period of interest from your question and often reads a bare month name as <em>next</em> year. If the analysis references a period you didn't mean, re-run it with an explicit range.</div>
+    </div>`;
+  }catch(e){
+    box.innerHTML=`<div class="err">PriceLabs couldn't diagnose this listing: ${esc(e.message)}
+      <br><span class="tiny">This tool needs recent synced pricing data. If sync is off or was just enabled, turn it on and retry in a day or two.</span></div>`;
+  }
+}
+
+async function loadNudges(){
+  try{
+    const r=await call('get_available_nudges',{question:'what price nudges are pending across my portfolio'});
+    const n=r.data?.nudges||[];
+    if(!n.length)return '<div class="note" style="margin:0">No price nudges pending from PriceLabs right now.</div>';
+    return '<h3 style="margin-top:0">PriceLabs price nudges</h3>'+n.map(x=>{
+      const dir=x.direction||(x.suggested_value>x.current_value?'increase':'decrease');
+      return `<div class="act md"><div class="u">${esc(x.listing_name||x.listing_id)}</div>
+        <div class="t">${esc(x.nudge_type||'price')} ${esc(dir)}: ${esc(x.current_value)} → ${esc(x.suggested_value)}</div>
+        <div class="w">${esc(x.reason||'PriceLabs suggests this based on current market data.')}</div>
+        <div class="do"><button class="stage" onclick="stageNudge('${esc(x.nudge_id)}','${esc(x.listing_id)}','${esc(x.pms_name||x.pms)}','${esc(x.listing_name||'')}','${esc(x.nudge_type||'price')} → ${esc(x.suggested_value)}')">Stage this nudge</button></div></div>`;
+    }).join('');
+  }catch(e){ return `<div class="note" style="margin:0">Couldn't check PriceLabs for price nudges: ${esc(e.message)}</div>`; }
+}
+
+function retryEnrich(id){
+  const u=byId(id); if(!u) return;
+  toast('Retrying market context for '+u.name,'OK',()=>{});
+  enrichUnit(u).then(()=>renderAll()).catch(e=>toast('Still failing: '+e.message,'OK',()=>{}));
+}
+
+/* ---------- stage builders ---------- */
+function stagePrices(u){
+  const g=k=>{const e=document.getElementById(k+'-'+u.id);return e&&e.value!==''?Math.round(+e.value):null};
+  const nb=g('base'),nm=g('min'),nx=g('max');
+  const body={id:u.id,pms:u.pms},bits=[];
+  if(nb!==null&&nb!==u.base){body.base=nb;bits.push(`base ${u.base!=null?money(u.base):'—'} → ${money(nb)}`)}
+  if(nm!==null&&nm!==u.min){body.min=nm;bits.push(`min ${u.min!=null?money(u.min):'none'} → ${money(nm)}`)}
+  if(nx!==null&&nx!==u.max){body.max=nx;bits.push(`max ${u.max!=null?money(u.max):'none'} → ${money(nx)}`)}
+  if(!bits.length){alert('Nothing changed.');return}
+  stage({unit:u.name,uid:u.id,key:`${u.id}:prices`,desc:'Update listing price settings',change:bits.join(' · '),
+    run:()=>call('update_listing_data',{listings:[body]})});
+}
+function quickMin(id,mult){const u=byId(id);
+  stage({unit:u.name,uid:u.id,key:`${u.id}:floor`,desc:'Raise price floor',change:`min ${money(u.min)} → ${money(u.min*mult)}`,
+    run:()=>call('update_listing_data',{listings:[{id:u.id,pms:u.pms,min:Math.round(u.min*mult)}]})})}
+function quickBase(id){const u=byId(id);
+  stage({unit:u.name,uid:u.id,key:`${u.id}:base`,desc:"Match PriceLabs' recommended base",change:`base ${money(u.base)} → ${money(u.recBase)}`,
+    run:()=>call('update_listing_data',{listings:[{id:u.id,pms:u.pms,base:Math.round(u.recBase)}]})})}
+function stageWindow(u,w){
+  const el=document.getElementById(`pct-${u.id}-${w.key}`);
+  const pct=el?+el.value:w.d.pct;
+  if(!pct){alert('Enter a percentage.');return}
+  const nights=openIn(u,w.from,w.to);
+  if(!nights.length){alert('No unbooked nights in that window.');return}
+  // Percent overrides ride on top of PriceLabs' own number rather than replacing
+  // it, so re-pushing the same move is a no-op instead of compounding.
+  const overrides=nights.map(d=>({date:d.date,price:String(pct),price_type:'percent'}));
+  const avg=nights.reduce((s,d)=>s+d.anchor,0)/nights.length;
+  const stk=stackCheck(u,nights,pct);
+  if(stk && !confirm('Heads up before staging this cut.\n\n'+stk.text+'\n\nStage it anyway?')) return;
+  stage({unit:u.name,uid:u.id,key:`${u.id}:win:${w.key}`,warn:stk?stk.text:null,
+    desc:`${pct>0?'Raise':'Cut'} ${Math.abs(pct)}% on ${nights.length} unbooked night${nights.length>1?'s':''}, ${w.label}`,
+    change:`${pct>0?'+':''}${pct}% vs PriceLabs · avg ${money(avg)} → ${money(avg*(1+pct/100))}`,
+    run:()=>call('update_listing_date_overrides',{listing_id:u.id,pms:u.pms,overrides})});
+}
+function stageOrphans(u){
+  const CFG=cfgFor(u);
+  const byDate=Object.fromEntries(u.days.map(d=>[d.date,d]));
+  const dates=u.orphans.flatMap(o=>o.dates);
+  const overrides=dates.map(dt=>({date:dt,price:String(-CFG.orphanDiscount),price_type:'percent',min_stay:CFG.orphanMinStay}));
+  stage({unit:u.name,uid:u.id,key:`${u.id}:orphans`,desc:`Clear ${dates.length} orphan night${dates.length>1?'s':''} — 25% off, 1-night minimum`,
+    change:dates.map(fmtD).join(', '),
+    run:()=>call('update_listing_date_overrides',{listing_id:u.id,pms:u.pms,overrides})});
+}
+function stageDay(u,date,quiet){
+  const d=u.days.find(x=>x.date===date);
+  const p=document.getElementById(`dp-${u.id}-${date}`),s=document.getElementById(`ds-${u.id}-${date}`);
+  const np=p.value!==''?Math.round(+p.value):null,ns=s.value!==''?Math.round(+s.value):null;
+  const o={date},bits=[];
+  if(np!==null&&np!==Math.round(d.eff)){o.price=String(np);o.price_type='fixed';o.currency=u.cur;bits.push(`${money(d.eff)} → ${money(np)}`)}
+  if(ns!==null&&ns!==d.min_stay){o.min_stay=ns;bits.push(`min-stay ${d.min_stay??'—'} → ${ns}`)}
+  if(!bits.length){ if(!quiet) alert('Nothing changed for '+fmtD(date)); return }
+  stage({unit:u.name,uid:u.id,key:`${u.id}:day:${date}`,desc:`Override ${fmtD(date)}`,change:bits.join(' · '),
+    pins:o.price?[{date,anchor:d.anchor,price:Number(o.price),type:'fixed'}]:null,
+    run:()=>call('update_listing_date_overrides',{listing_id:u.id,pms:u.pms,overrides:[o]})});
+}
+function stageClear(u){
+  const days=Number(document.getElementById('clr-'+u.id).value||30);
+  const nights=openIn(u,0,days);
+  if(!nights.length){alert('No unbooked nights in that range.');return}
+  stage({unit:u.name,uid:u.id,key:`${u.id}:clear`,desc:`Remove overrides on ${nights.length} night${nights.length>1?'s':''}, next ${days} days`,
+    change:'revert to standard PriceLabs pricing',
+    run:()=>call('delete_listing_date_overrides',{listing_id:u.id,pms:u.pms,overrides:nights.map(d=>({date:d.date}))})});
+}
+function stageRefresh(u){
+  stage({unit:u.name,uid:u.id,key:`${u.id}:refresh`,desc:'Recompute pricing calendar',change:'full refresh',
+    run:()=>call('refresh_listing_pricing',{listing_id:u.id,pms:u.pms,exclude_reasons_json:true})});
+}
+function stageNudge(nid,lid,pms,name,label){
+  stage({unit:name||lid,uid:lid,key:`${lid}:nudge`,desc:'Accept PriceLabs nudge',change:label,
+    run:()=>call('accept_nudge',{nudge_id:nid,listing_id:lid,pms:pms,question:'Accept this price nudge'})});
+}
+
+/* ---------- configuration screen ---------- */
+function configView(){
+  const groups=CFG_FIELDS.map(([title,fields])=>`
+    <div class="card"><h2>${esc(title)}</h2>
+      <div class="scroll"><table><thead><tr><th style="width:34%">Setting</th><th style="width:14%">Value</th><th>What it does</th></tr></thead><tbody>
+      ${fields.map(([k,label,help])=>`<tr>
+        <td><strong>${esc(label)}</strong><div class="tiny muted">${esc(k)}</div></td>
+        <td><input type="number" step="any" id="cfg-${k}" value="${CFG[k]}" style="width:88px"></td>
+        <td class="tiny muted">${esc(help)}</td></tr>`).join('')}
+      </tbody></table></div></div>`).join('');
+
+  const winRows=CFG.windows.map((w,i)=>`<tr>
+    <td><input type="text" id="cfgw-label-${i}" value="${esc(w.label)}" style="width:100%"></td>
+    <td><input type="number" id="cfgw-from-${i}" value="${w.from}" style="width:70px"></td>
+    <td><input type="number" id="cfgw-to-${i}" value="${w.to}" style="width:70px"></td>
+    <td><select id="cfgw-mode-${i}">
+      <option value="act"${w.mode==='act'?' selected':''}>Act on it</option>
+      <option value="watch"${w.mode==='watch'?' selected':''}>Watch only</option></select></td>
+    <td><input type="text" id="cfgw-speed-${i}" value="${esc(w.speed||'')}" style="width:100%"></td>
+    <td>${CFG.windows.length>1?`<button class="stage warn" onclick="delWindow(${i})">Remove</button>`:''}</td>
+  </tr>`).join('');
+
+  const profileCards=CFG.profiles.map((p,i)=>{
+    const claimed=UNITS.filter(u=>u.profile&&u.profile.id===p.id);
+    return `<div class="card">
+      <div class="chead"><div>
+        <h2><input type="text" id="pf-name-${i}" value="${esc(p.name)}" style="width:220px;font-size:15px;font-weight:600"></h2>
+        <div class="tiny muted">${p.id==='default'?'Fallback — claims anything no other profile matches.'
+          :`Matches ${(p.match?.cities||[]).length} cit${(p.match?.cities||[]).length===1?'y':'ies'} and ${(p.match?.states||[]).length} state${(p.match?.states||[]).length===1?'':'s'}.`}
+          ${claimed.length?`Currently: <strong>${claimed.map(u=>esc(u.name)).join(', ')}</strong>`:'<em>No properties matched.</em>'}</div>
+      </div>${p.id!=='default'?`<button class="stage warn" onclick="delProfile(${i})">Delete</button>`:''}</div>
+      ${p.id!=='default'?`<div class="ctl">
+        <label class="f" style="flex:1 1 240px">Cities (comma separated)
+          <input type="text" id="pf-cities-${i}" value="${esc((p.match?.cities||[]).join(', '))}" style="width:100%"></label>
+        <label class="f" style="flex:1 1 180px">States
+          <input type="text" id="pf-states-${i}" value="${esc((p.match?.states||[]).join(', '))}" style="width:100%"></label>
+      </div>`:''}
+      <div class="ctl"><label class="f" style="flex:1 1 100%">Market notes
+        <input type="text" id="pf-notes-${i}" value="${esc(p.notes||'')}" style="width:100%"></label></div>
+      <h3>Overrides</h3>
+      <div class="tiny muted" style="margin-bottom:8px">Leave blank to inherit the base value. Only fill in what genuinely differs for this market.</div>
+      <div class="scroll"><table><thead><tr><th style="width:44%">Setting</th><th>Base</th><th>This profile</th></tr></thead><tbody>
+        ${CFG_FIELDS.flatMap(([g,f])=>f).map(([k,label])=>`<tr>
+          <td>${esc(label)}</td><td class="muted bignum">${CFG[k]}</td>
+          <td><input type="number" step="any" id="pf-${i}-${k}" value="${p.overrides&&p.overrides[k]!=null?p.overrides[k]:''}" placeholder="inherit" style="width:90px"></td>
+        </tr>`).join('')}
+      </tbody></table></div>
+    </div>`;
+  }).join('');
+
+  const seasonCards=UNITS.map(u=>{
+    if(!u.seasons||!u.seasons.length){
+      const st=u.enrich&&u.enrich.health;
+      return `<div class="card"><h2>${esc(u.name)}</h2><div class="note" style="margin-top:8px">${
+        (!st||st==='pending')?'Seasonal data still loading.'
+        :st==='ok'?'PriceLabs returned no month-by-month data for this listing, so windows fall back to the fixed ones below.'
+        :`Seasonal data unavailable — the health call failed: ${esc(String(st))}. Windows fall back to the fixed ones below.`}</div></div>`;
+    }
+    const w=WINDOWS(u);
+    const src=u.winOverride?'your edit':(u.derivedWindows&&cfgFor(u).seasonalWindows?'derived from PriceLabs':'base config');
+    return `<div class="card">
+      <div class="chead"><div><h2>${esc(u.name)}</h2>
+        <div class="tiny muted">Windows in force: <strong>${esc(src)}</strong>${u.derivedFrom?` · ${esc(u.derivedFrom.label)}, bookings land ${u.derivedFrom.bwMin}–${u.derivedFrom.bwMax} days out`:''}</div></div>
+        ${u.winOverride?`<button class="stage" onclick="clearWinOverride('${u.id}')">Revert to derived</button>`:''}</div>
+      <div class="scroll"><table><thead><tr><th>Month</th><th>Season</th><th>Booking window</th><th>Market vs you</th></tr></thead><tbody>
+        ${u.seasons.map(sn=>`<tr><td><strong>${esc(sn.month)}</strong></td><td>${esc(sn.season||'—')}</td>
+          <td>${sn.bwMin!=null?`${sn.bwMin}–${sn.bwMax} days out`:'<span class="muted">—</span>'}</td>
+          <td class="tiny muted">${esc(sn.detail||'')}</td></tr>`).join('')}
+      </tbody></table></div>
+      <h3>Windows applied to this property</h3>
+      <div class="scroll"><table><thead><tr><th>Label</th><th>From</th><th>To</th><th>Mode</th><th></th></tr></thead><tbody>
+        ${w.map((x,j)=>`<tr>
+          <td><input type="text" id="uw-${u.id}-label-${j}" value="${esc(x.label)}" style="width:100%"></td>
+          <td><input type="number" id="uw-${u.id}-from-${j}" value="${x.from}" style="width:66px"></td>
+          <td><input type="number" id="uw-${u.id}-to-${j}" value="${x.to}" style="width:66px"></td>
+          <td><select id="uw-${u.id}-mode-${j}">
+            <option value="act"${x.mode==='act'?' selected':''}>Act</option>
+            <option value="watch"${x.mode==='watch'?' selected':''}>Watch</option></select></td>
+          <td></td></tr>`).join('')}
+      </tbody></table></div>
+      <div style="margin-top:10px"><button onclick="saveWinOverride('${u.id}',${w.length})">Save windows for this property</button></div>
+      <div class="note">Derived boundaries snap to the days-from-today points PriceLabs reports occupancy for (${DFD_POINTS.join(', ')}), because occupancy can only be compared at those points. Editing here overrides the derivation until you revert.</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="card">
+    <div class="chead"><div><h2>Configuration</h2>
+      <div class="tiny muted">Every number the recommendation engine uses. Changes apply immediately and are saved in this browser.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="exportCfg()">Export</button>
+        <button onclick="document.getElementById('cfgfile').click()">Import</button>
+        <input type="file" id="cfgfile" accept="application/json" style="display:none" onchange="importCfg(this)">
+        <button class="warn" onclick="resetCfg()">Reset to defaults</button>
+      </div></div>
+    <div class="ctl">
+      <label class="f" style="flex:1 1 100%">PriceLabs connector id
+        <span style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="cfg-connector" value="${esc(PL)}" style="flex:1 1 auto;font-family:ui-monospace,monospace;font-size:12px">
+          <button onclick="setConnector(document.getElementById('cfg-connector').value)">Apply &amp; reload</button>
+        </span>
+        <span class="tiny muted" style="text-transform:none;font-weight:400">Unique to your PriceLabs connection. If you received this dashboard from someone else, replace it with yours &mdash; ask Claude &ldquo;what is my PriceLabs MCP tool prefix?&rdquo;</span>
+      </label>
+    </div>
+    <div class="ctl">
+      <label class="f" style="flex:1 1 260px">Profile name
+        <input type="text" id="cfg-profileName" value="${esc(CFG.profileName)}" style="width:100%"></label>
+      <label class="f" style="flex:2 1 380px">Market notes
+        <input type="text" id="cfg-marketNotes" value="${esc(CFG.marketNotes)}" style="width:100%"></label>
+    </div>
+    <div class="note"><strong>Sharing this with another operator?</strong> Have them connect their own PriceLabs account, then hit
+      <em>Export</em> here and send them the JSON — they import it and inherit your thresholds without touching any of your data.
+      Remind them to review <em>Market notes</em> and the seasonal assumptions: thresholds travel between markets, seasonality does not.
+      A desert market's April cliff is wrong for a coastal one.</div>
+  </div>
+
+  <div class="card"><h2>Booking windows</h2>
+    <div class="tiny muted" style="margin-bottom:10px">Forward windows compared against market, in days from today. Add or remove rows to match how your market actually books.</div>
+    <div class="scroll"><table><thead><tr><th>Label</th><th>From</th><th>To</th><th>Mode</th><th>Guidance shown</th><th></th></tr></thead>
+    <tbody>${winRows}</tbody></table></div>
+    <div style="margin-top:10px"><button onclick="addWindow()">Add window</button></div>
+  </div>
+
+  <h3 style="margin-left:2px">Market profiles</h3>
+  <div class="note" style="margin:0 0 12px">Profiles let one dashboard serve several markets. A property is claimed by the last profile whose city or state matches it, otherwise it falls back to Default. Only the values you fill in override the base config below.</div>
+  ${profileCards}
+  <div class="card"><button onclick="addProfile()">Add a market profile</button></div>
+
+  ${seasonCards?`<h3 style="margin-left:2px">Seasonal booking windows</h3>
+  <div class="note" style="margin:0 0 12px">PriceLabs measures how far ahead each market books, month by month. With seasonal windows on, the boundaries resize themselves as the season turns — a market booking 1–5 days out in August shouldn't be judged on the same window as one booking 4–25 days out in October.</div>
+  <div class="ctl" style="margin-bottom:12px">
+    <label class="f">Seasonal windows
+      <select id="cfg-seasonalWindows-sel">
+        <option value="1"${CFG.seasonalWindows?' selected':''}>Derive from PriceLabs</option>
+        <option value="0"${!CFG.seasonalWindows?' selected':''}>Use fixed windows from config</option>
+      </select></label>
+  </div>${seasonCards}`:''}
+
+  ${groups}
+
+  <div class="card">
+    <button class="go" onclick="applyCfg()">Save and recalculate</button>
+    <span class="tiny muted" style="margin-left:10px">Recommendations refresh immediately. No PriceLabs data is refetched unless the horizon changed.</span>
+  </div>`;
+}
+function addProfile(){
+  CFG.profiles.push({id:'p'+Date.now().toString(36),name:'New market',
+    match:{cities:[],states:[]},notes:'',overrides:{}});
+  saveCfg(); renderAll();
+}
+function delProfile(i){
+  if(CFG.profiles[i].id==='default')return;
+  if(!confirm(`Delete the "${CFG.profiles[i].name}" profile? Properties it claimed fall back to Default.`))return;
+  CFG.profiles.splice(i,1); saveCfg(); recalc();
+}
+function saveWinOverride(uid,n){
+  const w=[];
+  for(let j=0;j<n;j++){
+    const g=id=>(document.getElementById(id)||{}).value;
+    w.push({key:'w'+j,label:g(`uw-${uid}-label-${j}`),from:Number(g(`uw-${uid}-from-${j}`)),
+      to:Number(g(`uw-${uid}-to-${j}`)),mode:g(`uw-${uid}-mode-${j}`),speed:''});
+  }
+  w.sort((a,b)=>a.from-b.from);
+  const u=byId(uid); if(!u)return;
+  u.winOverride=w; localStorage.setItem('rm_win_'+uid,JSON.stringify(w));
+  recalc(); toast('Windows saved for '+u.name,'Done',()=>{});
+}
+function clearWinOverride(uid){
+  const u=byId(uid); if(!u)return;
+  u.winOverride=null; localStorage.removeItem('rm_win_'+uid);
+  recalc(); toast('Reverted to derived windows.','Done',()=>{});
+}
+function addWindow(){
+  const last=CFG.windows[CFG.windows.length-1];
+  const from=last?last.to:0;
+  CFG.windows.push({key:'w'+(Date.now()%100000),label:`${from}–${from+30} days`,from,to:from+30,speed:'',mode:'act'});
+  saveCfg(); renderAll();
+}
+function delWindow(i){ CFG.windows.splice(i,1); saveCfg(); recalc(); }
+function applyCfg(){
+  const prevHorizon=CFG.calHorizon;
+  CFG_FIELDS.forEach(([,fields])=>fields.forEach(([k])=>{
+    const el=document.getElementById('cfg-'+k);
+    if(el&&el.value!=='') CFG[k]=Number(el.value);
+  }));
+  ['profileName','marketNotes'].forEach(k=>{
+    const el=document.getElementById('cfg-'+k); if(el) CFG[k]=el.value;
+  });
+  const sw=document.getElementById('cfg-seasonalWindows-sel');
+  if(sw) CFG.seasonalWindows = sw.value==='1';
+  CFG.profiles=CFG.profiles.map((p,i)=>{
+    const g=id=>(document.getElementById(id)||{}).value;
+    const list=v=>String(v||'').split(',').map(x=>x.trim()).filter(Boolean);
+    const ov={};
+    CFG_FIELDS.flatMap(([,f])=>f).forEach(([k])=>{
+      const el=document.getElementById(`pf-${i}-${k}`);
+      if(el&&el.value!=='') ov[k]=Number(el.value);
+    });
+    return {...p, name:g(`pf-name-${i}`)||p.name, notes:g(`pf-notes-${i}`)??p.notes,
+      match:p.id==='default'?{cities:[],states:[]}
+        :{cities:list(g(`pf-cities-${i}`)),states:list(g(`pf-states-${i}`))},
+      overrides:ov};
+  });
+  CFG.windows=CFG.windows.map((w,i)=>({
+    key:w.key,
+    label:(document.getElementById('cfgw-label-'+i)||{}).value||w.label,
+    from:Number((document.getElementById('cfgw-from-'+i)||{}).value??w.from),
+    to:Number((document.getElementById('cfgw-to-'+i)||{}).value??w.to),
+    mode:(document.getElementById('cfgw-mode-'+i)||{}).value||w.mode,
+    speed:(document.getElementById('cfgw-speed-'+i)||{}).value||''
+  })).sort((a,b)=>a.from-b.from);
+  saveCfg();
+  CAL_DAYS=CFG.calDays;
+  if(CFG.calHorizon!==prevHorizon){ CAL_HORIZON=CFG.calHorizon; toast('Horizon changed — reloading data.','OK',()=>{}); main(); return; }
+  recalc();
+  toast('Configuration saved.','Done',()=>{});
+}
+function recalc(){
+  // Re-derive everything that depends on thresholds, without refetching.
+  UNITS.forEach(u=>{
+    u._acts=null; u._open={};
+    u.profile=profileFor({city_name:(u.city||'').split(',')[0],state:(u.city||'').split(',')[1]});
+    const C=cfgFor(u);
+    u.wins=WINDOWS(u).map(w=>{
+      const disc=(o,a,b)=>(o[a]==null||o[b]==null)?null:(o[b]*b-o[a]*a)/(b-a);
+      const mine=w.from===0?u.cum[snapDFD(w.to)]:disc(u.cum,w.from,w.to);
+      const mk=w.from===0?u.mkt[snapDFD(w.to)]:disc(u.mkt,w.from,w.to);
+      if(mine==null||mk==null)return{...w,na:true};
+      return{...w,mine,mk,gap:mine-mk,d:decide(w.key,mine-mk,C,WINDOWS(u),mk,revPicture(u,w))};
+    });
+    u.orphans=findOrphans(u.days.filter(d=>new Date(d.date+'T12:00:00')<=Date.now()+90*864e5),cfgFor(u));
+    u.worst=u.wins.filter(w=>!w.na).sort((a,b)=>Math.abs(b.gap)-Math.abs(a.gap))[0]||null;
+  });
+  renderAll();
+}
+function exportCfg(){
+  const blob=new Blob([JSON.stringify(CFG,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=(CFG.profileName||'revenue-config').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'.json';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function importCfg(input){
+  const f=input.files&&input.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const o=JSON.parse(r.result);
+      if(!o||typeof o!=='object') throw new Error('not an object');
+      CFG={...CFG_DEFAULTS,...o};
+      if(!Array.isArray(CFG.windows)||!CFG.windows.length) CFG.windows=structuredClone(CFG_DEFAULTS.windows);
+      saveCfg(); CAL_DAYS=CFG.calDays; CAL_HORIZON=CFG.calHorizon;
+      recalc(); toast('Configuration imported.','OK',()=>{});
+    }catch(e){ alert('That file is not a valid configuration export: '+e.message); }
+    input.value='';
+  };
+  r.readAsText(f);
+}
+function resetCfg(){
+  if(!confirm('Reset every setting to the defaults?')) return;
+  CFG=structuredClone(CFG_DEFAULTS); saveCfg();
+  CAL_DAYS=CFG.calDays; CAL_HORIZON=CFG.calHorizon; recalc();
+}
+
+/* ---------- log & hidden ---------- */
+function renderLog(){
+  const el=document.getElementById('v-log');
+  if(!LOG.length){el.innerHTML='<div class="card"><h2>No changes pushed yet</h2><p class="muted" style="margin-bottom:0">Everything you send to PriceLabs from here gets recorded, so next week you can tell which move caused which change in pace.</p></div>';return}
+  el.innerHTML=`<div class="card">
+    <div class="chead"><div><h2>Change log</h2><div class="tiny muted">${LOG.length} pushed change${LOG.length>1?'s':''}</div></div>
+    <div style="display:flex;gap:8px"><button onclick="copyLog()">Copy as markdown</button>
+    <button class="warn" onclick="if(confirm('Clear the log?')){LOG=[];saveL();renderLog()}">Clear</button></div></div>
+    <div class="scroll"><table><thead><tr><th>When</th><th>Unit</th><th>Change</th></tr></thead><tbody>
+    ${LOG.map(e=>`<tr><td class="tiny">${dayName(e.ts)}</td><td>${esc(e.unit)}</td>
+      <td>${e.desc}<div class="tiny muted">${e.change}</div></td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="note">This log lives in the dashboard, not your files. Hit <strong>Copy as markdown</strong> and ask me to append it to <em>revenue-rules.md</em> to make it permanent.</div></div>`;
+}
+function copyLog(){
+  const md='| Date | Unit | Change | Result |\n| :-- | :-- | :-- | :-- |\n'+
+    LOG.map(e=>`| ${new Date(e.ts).toLocaleDateString('en-US')} | ${e.unit} | ${e.desc} — ${String(e.change).replace(/<[^>]*>/g,'')} | |`).join('\n');
+  navigator.clipboard.writeText(md).then(()=>alert('Copied. Ask me to append it to revenue-rules.md.'),()=>alert(md));
+}
+function hideUnit(id){
+  const u=byId(id);
+  if(!HIDDEN.includes(id))HIDDEN.push(id);
+  saveH(); renderAll();
+  toast(`Hid ${u?u.name:'property'}.`,'Undo',()=>unhideUnit(id));
+}
+function unhideUnit(id){HIDDEN=HIDDEN.filter(x=>x!==id);saveH();renderAll()}
+function unhideAll(){HIDDEN=[];saveH();renderAll()}
+
+function toast(msg,label,fn){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}
+  t.innerHTML=`<span>${esc(msg)}</span>`;
+  const b=document.createElement('button');
+  b.className='stage'; b.textContent=label;
+  b.onclick=()=>{fn();t.classList.remove('on')};
+  t.appendChild(b);
+  t.classList.add('on');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),8000);
+}
+
+function hiddenBar(){
+  if(!HIDDEN.length)return '';
+  return `<div class="note"><strong>${HIDDEN.length} propert${HIDDEN.length>1?'ies':'y'} hidden from this dashboard.</strong>
+    They're untouched in PriceLabs — hiding only changes what you see here.
+    <div style="margin-top:8px">${
+    HIDDEN.map(id=>{const u=UNITS.find(x=>x.id===id);
+      return `<span style="display:inline-flex;align-items:center;gap:6px;margin:0 10px 6px 0"><span class="tiny">${esc(u?u.name:id)}</span>
+      <button class="stage" onclick="unhideUnit('${id}')">Unhide</button></span>`}).join('')}
+      <button class="stage" onclick="unhideAll()">Show all</button></div></div>`;
+}
+
+/* ---------- boot ---------- */
+const byId=id=>UNITS.find(u=>u.id===id);
+const win=(id,k)=>byId(id).wins.find(w=>w.key===k);
+
+/* Render only the tab in view. Rebuilding every tab on every state change is
+   fine at two properties and wasteful at twenty. */
+let CUR='portfolio';
+function killCharts(){ Object.keys(CHARTS).forEach(k=>{try{CHARTS[k].destroy()}catch(e){} delete CHARTS[k]}); }
+
+function renderAll(){
+  const V=vis();
+  const st=document.getElementById('stamp');
+  if(st) st.innerHTML = STALE
+    ? `<span class="down">Cached — ${new Date(STALE).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</span>`
+    : (LOADED_AT?'Refreshed '+new Date(LOADED_AT).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'');
+  const c=document.getElementById('vcount');
+  if(c)c.innerHTML=HIDDEN.length
+    ? `Showing ${V.length} of ${UNITS.length} <button class="stage" style="margin-left:4px" onclick="unhideAll()">Show all</button>`
+    : '';
+
+  if(CUR==='portfolio'){
+    document.getElementById('v-portfolio').innerHTML=portfolioView();
+  } else if(CUR==='actions'){
+    document.getElementById('v-actions').innerHTML=(NUDGE_HTML?`<div class="card">${NUDGE_HTML}</div>`:'')+buildActions(V)+
+      `<div class="note"><strong>How these are decided.</strong> Occupancy per forward window is compared against your PriceLabs comp set.
+       Inside &plusmn;8 pts is hold; behind by 8&ndash;15 is a modest cut, 15+ a deep one; ahead by 8+ means raise.
+       61&ndash;90 days is watch-only unless you're 20+ pts behind. Every Stage button skips booked nights.
+       Thresholds live in <em>Revenue Management/revenue-rules.md</em>.</div>`;
+  } else if(CUR==='units'){
+    killCharts();
+    const shownU=ONLY.units?V.filter(u=>liveCount(u)>0):V;
+    const openN=shownU.filter(u=>isOpen(u.id)).length;
+    document.getElementById('v-units').innerHTML=
+      (V.length?`<div class="bar" style="position:static;padding:0;margin:0 0 12px;background:none">
+         <button onclick="setAll(true)">Expand all</button>
+         <button onclick="setAll(false)">Collapse all</button>
+         ${onlyToggle('units',shownU.length,V.length,'properties')}
+         <span class="tiny muted">${openN} of ${shownU.length} expanded</span></div>`:'')+
+      (V.length
+        ? (shownU.length?shownU.map(unitCard).join('')
+           :`<div class="card"><h2>Nothing needs attention</h2><p class="muted" style="margin-bottom:0">All ${V.length} propert${V.length>1?'ies are':'y is'} inside their thresholds. Switch the filter off to see them anyway.</p></div>`)+hiddenBar()
+        : emptyState())+
+      `<div class="note">31&ndash;60 and 61&ndash;90 day occupancy is derived from PriceLabs' cumulative forward figures &mdash; a close approximation. The 0&ndash;30 row is exact.</div>`;
+    shownU.filter(u=>isOpen(u.id)).forEach(drawChart);
+  } else if(CUR==='cal'){
+    document.getElementById('v-cal').innerHTML=calView();
+    refreshAllDayBtns();
+  } else if(CUR==='log'){
+    renderLog();
+  } else if(CUR==='config'){
+    document.getElementById('v-config').innerHTML=configView();
+  }
+}
+
+async function main(){
+  try{
+    errs.length=0;
+    document.getElementById('loading').classList.remove('hide');
+    const ld=await call('get_listing_data',{question:'base min max price and occupancy vs market for all listings',
+      only_syncing_listings:false,skip_hidden:true});
+    let listings=ld.data?.listings||[];
+    const byCh=new Map();
+    listings.forEach(l=>{
+      const ab=(l.channel_listing_details||[]).find(c=>c.channel_name==='airbnb');
+      const k=ab?ab.channel_listing_id:l.id;
+      const prev=byCh.get(k);
+      if(!prev||(!prev.push_enabled&&l.push_enabled))byCh.set(k,l);
+    });
+    listings=[...byCh.values()];
+
+    // Load in parallel with a concurrency cap. Sequential loading is 3 calls per
+    // property, so a 10-unit portfolio would take ~30 round-trips end to end.
+    // PriceLabs allows 60 requests/minute, so 4 at a time stays well inside it.
+    const LOAD_CONCURRENCY=CFG.loadConcurrency;
+    const loaded=new Array(listings.length);
+    let next=0, doneN=0;
+    const lbl=document.getElementById('loading');
+    // Paint each property as it arrives. With the rate limiter in play a large
+    // portfolio takes over a minute end to end, and waiting for the last one
+    // before showing the first is the difference between slow and broken.
+    let painted=0;
+    const worker=async()=>{
+      while(true){
+        const i=next++; if(i>=listings.length) return;
+        try{ loaded[i]=await loadUnit(listings[i]); }
+        catch(e){ errs.push(esc(listings[i].name)+' — failed to load'); }
+        doneN++;
+        UNITS=loaded.filter(Boolean);
+        if(lbl) lbl.textContent=`Loading ${doneN} of ${listings.length} properties…`;
+        if(UNITS.length&&Date.now()-painted>400){
+          painted=Date.now();
+          document.getElementById('loading').classList.add('hide');
+          try{ renderAll(); }catch(e){}
+        }
+      }
+    };
+    await Promise.all(Array.from({length:Math.min(LOAD_CONCURRENCY,listings.length)},worker));
+    UNITS=loaded.filter(Boolean);
+
+    document.getElementById('loading').classList.add('hide');
+    LOADED_AT=Date.now();
+    document.getElementById('errs').innerHTML=errs.map(e=>`<div class="err">${e}</div>`).join('');
+    if(UNITS.length){ STALE=null; saveCache(); }
+    renderAll();                       // dashboard is usable from here
+
+    // Background pass: market context and seasonal windows. Slow endpoints, and
+    // nothing above depends on them, so they must never block first paint.
+    (async()=>{
+      const st=document.getElementById('stamp');
+      if(st) st.innerHTML=(st.innerHTML||'')+' <span class="muted">· loading market context…</span>';
+      for(const u of UNITS){
+        try{ await enrichUnit(u); }
+        catch(e){ u.enrich={market:e.message||'failed',health:e.message||'failed'}; }
+      }
+      LOADED_AT=Date.now(); saveCache(); renderAll();
+      try{ NUDGE_HTML=await loadNudges(); if(CUR==='actions') renderAll(); }catch(e){}
+    })();
+  }catch(e){
+    document.getElementById('loading').classList.add('hide');
+    if(/tool not found|unknown tool|no such tool|not available/i.test(e.message||'')){
+      document.getElementById('errs').innerHTML=
+        `<div class="err"><strong>This dashboard can't find your PriceLabs connector.</strong>
+         It's currently pointed at <code>${esc(PL)}</code>, which belongs to whoever set this copy up.
+         Every PriceLabs connection gets its own id, so yours will differ.
+         <div style="margin-top:8px">Open the <strong>Config</strong> tab and paste your own connector id, or ask Claude
+         &ldquo;what is my PriceLabs MCP tool prefix?&rdquo; and enter what it reports.</div></div>`;
+      renderAll(); return;
+    }
+    const down=TRANSIENT.test(e.message||'');
+    const cached=loadCache();
+    if(cached){
+      UNITS=cached.units; STALE=cached.ts;
+      document.getElementById('errs').innerHTML=
+        `<div class="warnbox"><strong>PriceLabs isn't responding${down?'':' — '+esc(e.message)}.</strong>
+         Showing your last good data from ${new Date(cached.ts).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}.
+         Figures may have moved since, and pushing changes won't work until the connection is back.
+         <button class="stage" style="margin-left:6px" onclick="main()">Try again</button></div>`;
+      renderAll();
+    } else {
+      document.getElementById('errs').innerHTML=
+        `<div class="err"><strong>Couldn't reach PriceLabs.</strong> ${esc(e.message)}
+         <br><span class="tiny">Their MCP connector is in beta and does go down. Nothing on your side is broken and no data is lost — wait a few minutes and try again.</span>
+         <div style="margin-top:8px"><button class="stage" onclick="main()">Try again</button></div></div>`;
+      renderAll();
+    }
+  }
+}
+function show(v){
+  ['portfolio','actions','units','cal','log','config'].forEach(k=>{
+    document.getElementById('v-'+k).classList.toggle('hide',k!==v);
+    document.getElementById('tab-'+k).classList.toggle('on',k===v);
+  });
+  CUR=v; renderAll(); hideTip();
+  window.scrollTo({top:0,behavior:'instant'});
+}
+['portfolio','actions','units','cal','log','config'].forEach(k=>document.getElementById('tab-'+k).onclick=()=>show(k));
+document.getElementById('theme').onclick=toggleTheme;
+document.getElementById('traytoggle').onclick=toggleTray;
+/* Shadow the tab bar only once it's actually pinned, so it reads as floating.
+   Purely cosmetic — never let it break the page if the DOM shape differs. */
+try{
+  const bar=document.querySelector&&document.querySelector('.bar');
+  if(bar&&window.IntersectionObserver&&document.body.insertBefore){
+    const probe=document.createElement('div');
+    probe.style.cssText='position:absolute;top:0;height:1px;width:1px';
+    document.body.insertBefore(probe,document.body.firstChild);
+    new IntersectionObserver(([e])=>bar.classList.toggle('stuck',!e.isIntersecting)).observe(probe);
+  }
+}catch(e){}
+document.getElementById('pushall').onclick=pushAll;
+document.getElementById('clearall').onclick=()=>{if(confirm('Discard all staged changes?')){PENDING=[];renderTray();syncButtons()}};
+main().then(()=>show('portfolio'));
+</script>
+</body>
+</html>

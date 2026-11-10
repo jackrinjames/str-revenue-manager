@@ -505,7 +505,9 @@ function loadCache(){
 }
 const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(n)?null:n};
 const money=n=>'$'+Math.round(n).toLocaleString();
-const iso=d=>d.toISOString().slice(0,10);
+// Local calendar date, not UTC. toISOString() is UTC, so in the US evening it
+// returned tomorrow's date and tonight vanished from the calendar.
+const iso=d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const fmtD=s=>new Date(s+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const daysAgo=ts=>Math.max(0,Math.round((Date.now()-ts)/864e5));
@@ -834,13 +836,18 @@ async function loadUnit(l){
   // endpoints are fetched afterwards by enrichUnit() so a slow market call can't
   // hold up the whole portfolio.
   const t=new Date();
-  const [mR,pR,oR]=await Promise.allSettled([
+  const [mR,pR,oR,sR]=await Promise.allSettled([
     call('get_listing_performance_metrics',{listing_id:u.id,pms_name:u.pms,question:'occupancy vs market for the next 90 days'}),
     call('get_listing_prices',{listing_id:u.id,pms_name:u.pms,
-      date_from:iso(new Date(t.getTime()+864e5)),date_to:iso(new Date(t.getTime()+CAL_HORIZON*864e5))}),
+      date_from:iso(t),date_to:iso(new Date(t.getTime()+CAL_HORIZON*864e5))}),
     call('get_listing_date_overrides',{listing_id:u.id,pms:u.pms,
       question:'what date specific overrides are currently set',
-      start_date:iso(t),end_date:iso(new Date(t.getTime()+CAL_HORIZON*864e5))})
+      start_date:iso(t),end_date:iso(new Date(t.getTime()+CAL_HORIZON*864e5))}),
+    // Your seasonal profile carries per-season floors. Without it the dashboard
+    // would treat the listing minimum as the floor everywhere and could stage a
+    // fixed price below a season minimum — fixed overrides bypass PriceLabs' floor.
+    call('get_customizations',{level:'listing',listing_id:u.id,pms_name:u.pms,
+      customizations:'custom_seasonal_profile',toggled_on:false,question:'seasonal profile floors'},1)
   ]);
 
   if(mR.status==='fulfilled'){
@@ -870,6 +877,8 @@ async function loadUnit(l){
   } else errs.push(esc(u.name)+' — price calendar unavailable');
 
   if(oR.status==='fulfilled') (oR.value.data?.overrides||[]).forEach(x=>{u.ovr[x.date]=x});
+  u.csp = sR.status==='fulfilled' ? parseCsp(sR.value.data?.customizations?.custom_seasonal_profile) : null;
+  u.cspErr = sR.status==='rejected' ? (sR.reason?.message||'failed') : null;
   u.surge={}; u.comp=null;
 
   return finishUnit(u);
@@ -920,6 +929,34 @@ async function enrichUnit(u){
   return finishUnit(u);
 }
 
+/* ---------- seasonal profile ----------
+   Repeating seasons from PriceLabs' Custom Seasonal Profile. With the percentage
+   type, min/base are % changes from the listing's own min/base; with fixed they
+   are dollar amounts. Seasons carry no year, so they're matched on month/day. */
+function cspName(s){ return String(s||'').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/([A-Za-z])(\d)/g,'$1 $2').trim(); }
+function parseCsp(c){
+  if(!c||!c.custom_seasonal_profile_on) return null;
+  const p=c.custom_seasonal_profile||{}, ss=p.seasons||[];
+  if(!ss.length) return null;
+  const num=v=>(v===null||v===undefined||v===''||v==='None')?null:Number(v);
+  return {type:p.price_type||'percentage', seasons:ss.map(s=>({
+    name:cspName(s.season_name), sm:+s.start_month, sd:+s.start_day, em:+s.end_month, ed:+s.end_day,
+    min:num(s.lowest_price), base:num(s.base_price), max:num(s.highest_price)}))};
+}
+function cspSeason(u,date){
+  if(!u.csp) return null;
+  const m=+date.slice(5,7), d=+date.slice(8,10), k=m*100+d;
+  return u.csp.seasons.find(s=>{ const a=s.sm*100+s.sd, b=s.em*100+s.ed;
+    return a<=b ? (k>=a&&k<=b) : (k>=a||k<=b); })||null;
+}
+/* The floor PriceLabs actually enforces on this night. */
+function floorFor(u,d){
+  const s=d&&d.season;
+  if(!s||s.min==null) return u.min;
+  if(u.csp.type==='fixed') return s.min;
+  return u.min!=null ? Math.round(u.min*(1+s.min/100)) : null;
+}
+
 /* Everything derived from whatever data we have so far. Safe to call twice —
    once on the fast path, again after enrichment adds windows and surge dates. */
 function finishUnit(u){
@@ -946,6 +983,10 @@ function finishUnit(u){
     // ...except it does move: PriceLabs recomputes it on refresh, and on nights
     // you've overridden it has come back lower. Hold the anchor you pushed from
     // while that override is still the one in place, for the cooling period.
+    d.season=cspSeason(u,d.date); d.floor=floorFor(u,d);
+    // Fixed overrides skip PriceLabs' floor entirely, so one sitting under the
+    // season minimum is selling below the price you meant to defend.
+    d.belowFloor=!!(o&&o.price_type==='fixed'&&d.floor!=null&&Number(o.price)<d.floor-0.5&&!d.booking_status&&!d.unbookable);
     d.pinned=false; d.anchorLive=d.anchor;
     const pins=PINS[u.id], pin=pins&&pins[d.date];
     if(pin){
@@ -965,7 +1006,8 @@ function finishUnit(u){
   const within90=u.days.filter(d=>new Date(d.date+'T12:00:00')<=cut);
   const open=within90.filter(d=>!d.booking_status&&!d.unbookable);
   u.openN=open.length;
-  u.pinned=u.min!=null?open.filter(d=>d.eff<=u.min+0.5).length:0;
+  u.pinned=u.min!=null?open.filter(d=>d.floor!=null&&d.eff<=d.floor+0.5).length:0;
+  u.belowFloor=u.days.filter(d=>d.belowFloor);
   u.ovrN=Object.keys(u.ovr).length;
   u.orphans=findOrphans(within90,C);
   u._open={};   // memo for openIn()
@@ -987,7 +1029,7 @@ function openIn(u,from,to){
   const now=Date.now();
   const r=u.days.filter(d=>{
     if(d.booking_status||d.unbookable)return false;
-    const off=(new Date(d.date+'T12:00:00')-now)/864e5;
+    const off=Math.max(0.01,(new Date(d.date+'T12:00:00')-now)/864e5);
     return off>from&&off<=to;
   });
   if(u._open)u._open[k]=r;
@@ -1104,11 +1146,21 @@ function actionsFor(u){
       note:(()=>{const st=stackCheck(u,openIn(u,w.from,w.to),w.d.pct);return st?st.text:null})(),
       rank:(w.d.sev==='hi'?0:1)*10+(w.key==='w1'?0:w.key==='w2'?1:2)});
   });
+  if(u.belowFloor&&u.belowFloor.length){
+    const bf=u.belowFloor;
+    acts.push({unit:u.name,uid:u.id,sev:'hi',rank:-0.5,key:`${u.id}:belowfloor`,
+      title:`${bf.length} night${bf.length>1?'s':''} selling below the season minimum`,
+      why:`Fixed-dollar overrides replace PriceLabs' price outright, so they skip the minimums in your seasonal profile. `+
+        bf.slice(0,5).map(d=>`${fmtD(d.date)} at ${money(d.eff)} (min ${money(d.floor)})`).join(', ')+(bf.length>5?'…':'')+
+        `. Removing the overrides lets PriceLabs price these nights again, at or above each season's minimum.`,
+      btn:`<button class="stage" onclick="stageClearBelowFloor(byId('${u.id}'))">Stage removal of ${bf.length}</button>`});
+  }
   if(u.openN&&u.min!=null&&u.pinned/u.openN>CFG.floorBindPct/100){
     const mpi=u.mpi[90];
     acts.push({unit:u.name,uid:u.id,sev:(mpi&&mpi>CFG.mpiFarAhead)?'hi':'md',rank:5,key:`${u.id}:floor`,
       title:`Raise the ${money(u.min)} price floor`,
       why:`${u.pinned} of ${u.openN} open nights sit exactly at your minimum, so the floor is setting your price rather than the algorithm.`+
+        (u.csp&&u.csp.type==='percentage'?` Your seasonal minimums are percentages of this listing minimum, so raising it lifts every season's floor by the same proportion.`:'')+
         (mpi&&mpi>CFG.mpiFarAhead?` You're filling at ${mpi.toFixed(1)}× the market rate — cheapest option, not most in demand. Test ${money(u.min*1.1)}–${money(u.min*1.2)} and watch pace for a week.`:''),
       btn:`<button class="stage" onclick="quickMin('${u.id}',1.15)">Stage floor at ${money(u.min*1.15)}</button>`});
   }
@@ -1552,7 +1604,11 @@ function seasonNow(u){
 }
 function seasonAdvice(u){
   const s=seasonNow(u); if(!s) return null;
-  const kind=/high/i.test(s.season)?'high':/shoulder/i.test(s.season)?'shoulder':/low/i.test(s.season)?'low':'';
+  // Your own seasonal profile outranks PriceLabs' month-level market label: it's
+  // half-month resolution and it's what PriceLabs is actually pricing against.
+  const today=iso(new Date()), cs=cspSeason(u,today);
+  const lbl=cs?cs.name:s.season;
+  const kind=/high/i.test(lbl)?'high':/shoulder/i.test(lbl)?'shoulder':/low/i.test(lbl)?'low':cs?'high':'';
   const lead=s.bwMax;
   const w=u.wins.filter(x=>!x.na);
   const near=w[0], far=w[w.length-1];
@@ -1567,7 +1623,12 @@ function seasonAdvice(u){
     line=`Shoulder season, the hardest to read. Pace swings quickly, so act on the near window and re-check weekly rather than making one big move.`;
   if(near&&far&&kind==='low'&&lead!=null&&lead<=10&&far.gap<-cfgFor(u).gapHold)
     line+=` The ${far.label} gap looks alarming but is mostly an artefact of the short booking window.`;
-  return {...s,kind,line};
+  if(cs){
+    const mo=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const fl=floorFor(u,{season:cs});
+    line=`Your season: ${cs.name} (${mo[cs.sm]} ${cs.sd} – ${mo[cs.em]} ${cs.ed}${fl!=null?`, minimum ${money(fl)}`:''}). `+line;
+  }
+  return {...s,kind,line,custom:cs};
 }
 function seasonStrip(u){
   if(!u.seasons||!u.seasons.length){
@@ -1599,7 +1660,7 @@ function recMinStay(u,d,orphanSet){
   const CFG=cfgFor(u);   // shadow global with the property's effective profile
   const pl = d.min_stay!=null ? Number(d.min_stay) : 1;
   if(d.booking_status||d.unbookable) return null;
-  const off=(new Date(d.date+'T12:00:00')-Date.now())/864e5;
+  const off=Math.max(0.01,(new Date(d.date+'T12:00:00')-Date.now())/864e5);
 
   if(orphanSet.has(d.date))
     return {n:1,why:'This sits in a 1–2 night gap between bookings. Only a single-night stay can fill it, so any minimum above 1 guarantees it goes empty.'};
@@ -1646,7 +1707,7 @@ function jumpSurge(id){
 function recPrice(u,d,orphanSet){
   const CFG=cfgFor(u);
   if(d.booking_status||d.unbookable) return null;
-  const off=(new Date(d.date+'T12:00:00')-Date.now())/864e5;
+  const off=Math.max(0.01,(new Date(d.date+'T12:00:00')-Date.now())/864e5);
   const anchor=d.anchor;
   const sg=(u.surge||{})[d.date];
   const w=u.wins.find(x=>!x.na&&off>x.from&&off<=x.to);
@@ -1663,7 +1724,8 @@ function recPrice(u,d,orphanSet){
   }
   const wanted=Math.max(1,Math.round(anchor*(1+pct/100)));
   let p=wanted, clamp=null;
-  if(u.min!=null&&p<u.min){ p=Math.round(u.min); clamp='floor'; }
+  const fl=d.floor!=null?d.floor:u.min;
+  if(fl!=null&&p<fl){ p=Math.round(fl); clamp='floor'; }
   if(u.max!=null&&p>u.max){ p=Math.round(u.max); clamp='ceiling'; }
 
   // "Already done" has to mean the price wouldn't move. Comparing target
@@ -1671,6 +1733,20 @@ function recPrice(u,d,orphanSet){
   // result back onto the current price — a real no-op that still looked like a change.
   const cur=Math.round(d.eff);
   let already=Math.abs(p-cur)<1;
+
+  // Don't offer a number that's about to change. The RevPAN brake (caps cuts)
+  // and boost (lifts raises) need the comp-set price, which loads in the
+  // background. Before it arrives the engine shows the unbraked figure — e.g.
+  // −15% — then flips to −5% once it lands, so pushing early sets a price the
+  // rules don't actually want and the next refresh tells you to undo it.
+  const mk=u.enrich&&u.enrich.market;
+  if(mk!=='ok'){
+    const loading=!mk||mk==='pending';
+    return {p:cur,pct,anchor,already:true,provisional:true,clamp:null,wanted,
+      why: loading
+        ? `Market data is still loading. The RevPAN check can change this recommendation, so it isn't offered until that finishes.`
+        : `Market data didn't load (${mk}), so the RevPAN check can't run and this recommendation isn't reliable. Retry market data on the By unit tab.`};
+  }
 
   // Nights you set by hand inside the cooling period, from before anchors were
   // pinned: we don't know what they were priced from, so leave them alone
@@ -1684,7 +1760,7 @@ function recPrice(u,d,orphanSet){
   }
 
   const clampNote=clamp==='floor'
-    ? `The rules want ${money(wanted)}, but your ${money(u.min)} floor holds it there.`
+    ? `The rules want ${money(wanted)}, but your ${money(fl)} ${d.season?d.season.name+' ':''}floor holds it there.`
     : clamp==='ceiling'
     ? `The rules want ${money(wanted)}, but your ${money(u.max)} ceiling caps it.`
     : '';
@@ -1891,7 +1967,7 @@ function calView(){
   const rows=shownNights.map(d=>{
     const bk=!!d.booking_status||!!d.unbookable;
     const o=u.ovr[d.date];
-    const pinned=u.min!=null&&d.price<=u.min+0.5;
+    const pinned=d.floor!=null&&d.price<=d.floor+0.5;
     const dow=new Date(d.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'});
     const oms=o&&o.min_stay!=null?Number(o.min_stay):null;
     const longMs=oms!=null&&d.min_stay!=null&&oms>d.min_stay;
@@ -1905,6 +1981,7 @@ function calView(){
     const rp = bk?null:recPrice(u,d,orphanSet);
     const rpDelta = rp&&d.eff>0 ? Math.round((rp.p-d.eff)/d.eff*100) : 0;
     const rpCell = !rp ? '<span class="muted">—</span>'
+      : rp.provisional ? `<span class="muted" title="${esc(rp.why)}" style="cursor:help">…</span>`
       : rp.already ? `<span class="muted" title="${esc(rp.why)}">${money(rp.p)}${rp.clamp?` <span class="pill mini p-hold">${rp.clamp==='floor'?'FLR':'CAP'}</span>`:''}</span>`
       : `<button class="stage rec ${rp.p<d.eff?'rec-cut':'rec-raise'}" title="${esc(rp.why)} — click to fill the input"
            onclick="applyPrice('${u.id}','${d.date}',${rp.p})">${money(rp.p)} ${rp.p<d.eff?'↓':'↑'}${Math.abs(rpDelta)}%</button>`;
@@ -1923,7 +2000,7 @@ function calView(){
     else if(goodDemand&&!sg) tags+=`<span class="pill mini p-watch" title="Good demand — PriceLabs rates demand as Good for this night">G</span>`;
     if(orphanSet.has(d.date)) tags+=`<span class="pill mini p-hold" title="Orphan — a 1–2 night gap between bookings. Price it to move.">O</span>`;
     return `<tr class="${bk?'booked':''} ${sg?'row-surge':''}">
-      <td>${fmtD(d.date)} <span class="muted tiny">${dow}</span>${tags}</td>
+      <td>${fmtD(d.date)} <span class="muted tiny">${dow}</span>${tags}${d.season?`<div class="tiny muted" title="Season from your PriceLabs seasonal profile${d.floor!=null?` · minimum ${money(d.floor)}`:''}">${esc(d.season.name)}</div>`:''}${d.belowFloor?` <span class="pill mini p-cut" title="Fixed override ${money(d.eff)} is below the ${money(d.floor)} season minimum">&lt;MIN</span>`:''}</td>
       <td data-l="PriceLabs" class="r bignum"${rsn?` title="${esc(rsn)}" style="cursor:help;border-bottom:1px dotted #a1a1aa"`:''}>${money(d.price)}${pinned&&!bk?' <span class="pill mini p-watch">FLR</span>':''}</td>
       <td data-l="Pre-adj." class="r bignum ${exd>=cfgFor(u).stackWarnPct?'s-warn':'muted'}"${exd?` title="PriceLabs is already ${exd}% below this pre-adjustment rate on this night"`:''}>${d.uncustomized_price>0?money(d.uncustomized_price):'—'}${exd>=cfgFor(u).stackWarnPct?` <span class="pill mini p-watch">-${exd}%</span>`:''}</td>
       <td data-l="On channel" class="r bignum muted"${d.user_price>0&&Math.abs(d.user_price-d.price)>1?` title="What's currently live on the channel. It differs from the Live price above, which means PriceLabs hasn't pushed the change yet."`:''}>${d.user_price>0?money(d.user_price)+(Math.abs(d.user_price-d.price)>1?' <span class="pill mini p-watch">lag</span>':''):'—'}</td>
@@ -1965,6 +2042,12 @@ function calView(){
 
       <span class="tiny muted">Data loaded ${CAL_HORIZON} days out</span>
     </div>
+    ${u.belowFloor&&u.belowFloor.length?`<div class="warnbox"><strong>${u.belowFloor.length} night${u.belowFloor.length>1?'s are':' is'} priced below ${u.belowFloor.length>1?'their':'its'} season minimum.</strong>
+      These have fixed-dollar overrides, which replace PriceLabs' price outright and skip the floor in your seasonal profile:
+      ${u.belowFloor.slice(0,8).map(d=>`${fmtD(d.date)} ${money(d.eff)} (min ${money(d.floor)})`).join(', ')}${u.belowFloor.length>8?'…':''}.
+      Removing them hands these nights back to PriceLabs, which then prices them at or above the season minimum.
+      <button class="stage bulk-btn" data-key="${u.id}:belowfloor" data-done="Staged ✓" style="margin-left:6px" onclick="stageClearBelowFloor(byId('${u.id}'))">Stage removal</button></div>`:''}
+    ${u.cspErr?`<div class="note">Couldn't read your seasonal profile (${esc(u.cspErr)}), so floors fall back to the listing minimum of ${money(u.min)}.</div>`:''}
     ${stale!=null&&stale>18?`<div class="warnbox"><strong>PriceLabs last recomputed this calendar ${stale>48?Math.round(stale/24)+' days':stale+' hours'} ago.</strong>
       The <em>PriceLabs price</em> column reflects that snapshot, so a change you pushed since then won't show there yet — check the <em>Your override</em> column instead, which reads live.
       <button class="stage" style="margin-left:6px" onclick="stageRefresh(byId('${u.id}'))">Stage a recompute</button></div>`:''}
@@ -2144,6 +2227,8 @@ function stageWindow(u,w){
   const el=document.getElementById(`pct-${u.id}-${w.key}`);
   const pct=el?+el.value:w.d.pct;
   if(!pct){alert('Enter a percentage.');return}
+  const mk=u.enrich&&u.enrich.market;
+  if(mk!=='ok' && !confirm(`Market data ${!mk||mk==='pending'?'is still loading':'failed to load'}, so the RevPAN check hasn't run yet. It often shrinks cuts (for example −15% to −5%).\n\nStage ${pct}% anyway?`)) return;
   const nights=openIn(u,w.from,w.to);
   if(!nights.length){alert('No unbooked nights in that window.');return}
   // Percent overrides ride on top of PriceLabs' own number rather than replacing
@@ -2169,12 +2254,19 @@ function stageOrphans(u){
 function stageDay(u,date,quiet){
   const d=u.days.find(x=>x.date===date);
   const p=document.getElementById(`dp-${u.id}-${date}`),s=document.getElementById(`ds-${u.id}-${date}`);
-  const np=p.value!==''?Math.round(+p.value):null,ns=s.value!==''?Math.round(+s.value):null;
+  let np=p.value!==''?Math.round(+p.value):null;const ns=s.value!==''?Math.round(+s.value):null;
   const o={date},bits=[];
+  // A fixed override replaces PriceLabs' price outright, floor included. Never
+  // let one go out below the season minimum you set in the seasonal profile.
+  let floorWarn=null;
+  if(np!==null&&d.floor!=null&&np<d.floor){
+    floorWarn=`${money(np)} is below the ${money(d.floor)} ${d.season?d.season.name+' ':''}minimum, so it was raised to ${money(d.floor)}. Lower the season minimum in PriceLabs if you really want to go under it.`;
+    np=Math.ceil(d.floor); p.value=np;
+  }
   if(np!==null&&np!==Math.round(d.eff)){o.price=String(np);o.price_type='fixed';o.currency=u.cur;bits.push(`${money(d.eff)} → ${money(np)}`)}
   if(ns!==null&&ns!==d.min_stay){o.min_stay=ns;bits.push(`min-stay ${d.min_stay??'—'} → ${ns}`)}
   if(!bits.length){ if(!quiet) alert('Nothing changed for '+fmtD(date)); return }
-  stage({unit:u.name,uid:u.id,key:`${u.id}:day:${date}`,desc:`Override ${fmtD(date)}`,change:bits.join(' · '),
+  stage({unit:u.name,uid:u.id,key:`${u.id}:day:${date}`,desc:`Override ${fmtD(date)}`,change:bits.join(' · '),warn:floorWarn,
     pins:o.price?[{date,anchor:d.anchor,price:Number(o.price),type:'fixed'}]:null,
     run:()=>call('update_listing_date_overrides',{listing_id:u.id,pms:u.pms,overrides:[o]})});
 }
@@ -2184,6 +2276,14 @@ function stageClear(u){
   if(!nights.length){alert('No unbooked nights in that range.');return}
   stage({unit:u.name,uid:u.id,key:`${u.id}:clear`,desc:`Remove overrides on ${nights.length} night${nights.length>1?'s':''}, next ${days} days`,
     change:'revert to standard PriceLabs pricing',
+    run:()=>call('delete_listing_date_overrides',{listing_id:u.id,pms:u.pms,overrides:nights.map(d=>({date:d.date}))})});
+}
+function stageClearBelowFloor(u){
+  const nights=u.belowFloor||[];
+  if(!nights.length){alert('No nights are below their season minimum.');return}
+  stage({unit:u.name,uid:u.id,key:`${u.id}:belowfloor`,
+    desc:`Remove ${nights.length} below-minimum override${nights.length>1?'s':''}`,
+    change:'hand back to PriceLabs at or above the season minimum',
     run:()=>call('delete_listing_date_overrides',{listing_id:u.id,pms:u.pms,overrides:nights.map(d=>({date:d.date}))})});
 }
 function stageRefresh(u){

@@ -53,7 +53,7 @@ create_artifact
 
 The `mcp_tools` list must use their connector id, not the placeholder:
 
-`get_listing_data`, `get_listing_performance_metrics`, `get_listing_prices`, `get_listing_date_overrides`, `get_listings`, `get_bookings_report`, `update_listing_data`, `update_listing_date_overrides`, `delete_listing_date_overrides`, `refresh_listing_pricing`, `get_listing_health_and_recommendations`, `get_neighbourhood_data`, `diagnose_no_bookings`, `get_available_nudges`, `accept_nudge`
+`get_listing_data`, `get_listing_performance_metrics`, `get_listing_prices`, `get_listing_date_overrides`, `get_listings`, `get_bookings_report`, `update_listing_data`, `update_listing_date_overrides`, `delete_listing_date_overrides`, `refresh_listing_pricing`, `get_listing_health_and_recommendations`, `get_neighbourhood_data`, `diagnose_no_bookings`, `get_available_nudges`, `accept_nudge`, `get_customizations`
 
 ### 3. Ask about their portfolio before interpreting anything
 
@@ -90,8 +90,8 @@ The three things worth showing them first:
 - **Individual competitor listings** aren't exposed through the connector — only the aggregate comp set.
 - **Pricing factor breakdowns** exist in PriceLabs' REST API but not the MCP tool.
 - **Same-time-last-year** figures stay empty until a listing has a full year of synced history.
-- **Scale.** A full load is roughly `1 + 5N` API calls against PriceLabs' 60/minute ceiling. Comfortable to about 15 properties, workable to 30. Past that, a server-side deployment using the Customer API's batched endpoints is the better shape.
+- **Scale.** A full load is roughly `1 + 6N` API calls against PriceLabs' 60/minute ceiling. Comfortable to about 15 properties, workable to 30. Past that, a server-side deployment using the Customer API's batched endpoints is the better shape.
 
 ## Editing it later
 
-`DASHBOARD-DESIGN.md` in this skill directory documents the architecture, the data model, and — importantly — three design decisions that look arbitrary but are fixes for real bugs. Read it before changing the recommendation logic. Reverting any of the three reintroduces a bug that looks correct every time it fires.
+`DASHBOARD-DESIGN.md` in this skill directory documents the architecture, the data model, and — importantly — seven design decisions that look arbitrary but are fixes for real bugs. Read it before changing the recommendation logic. Reverting any of them reintroduces a bug that looks correct every time it fires.

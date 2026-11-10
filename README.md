@@ -78,7 +78,7 @@ for a week so you can see whether pace responds.
 - **State is per browser.** Your change log, pins, hidden properties and config
   live in local storage. Clearing it or switching machines loses them — export
   your config from the Config tab.
-- **Scale.** A full load is about `1 + 5 × properties` API calls against
+- **Scale.** A full load is about `1 + 6 × properties` API calls against
   PriceLabs' 60/minute limit. Comfortable to ~15 properties, workable to ~30.
   Beyond that you need a server-side build on PriceLabs' batched REST API.
 

@@ -35,7 +35,7 @@ Every PriceLabs connection gets its own MCP server id. The default is the origin
 
 Only `window.cowork.callMcpTool` is available — the artifact cannot make arbitrary HTTP requests. This rules out BNBCalc, AirDNA and anything else needing a key or custom headers. Those require the Worker.
 
-### Fast path — blocks first render, 3 calls per property
+### Fast path — blocks first render, 4 calls per property
 
 | Tool | Used for |
 | :---- | :---- |
@@ -69,7 +69,7 @@ Only `window.cowork.callMcpTool` is available — the artifact cannot make arbit
 
 ---
 
-## The four decisions that must not be reverted
+## Decisions that must not be reverted
 
 ### 1. Recommendations anchor to `uncustomized_price`, never `price`
 
@@ -119,6 +119,37 @@ still the one we pushed, `d.anchor` uses the pinned value (`d.anchorLive` keeps
 PriceLabs' current figure for display). Pins are dropped when they expire or a
 different override replaces ours. Nights pushed before pins existed are held via
 the change log for the cooling period instead.
+
+### 5. No price recommendation until market data has loaded
+
+The RevPAN brake (caps cuts at 5% when RevPAN trails the market and your rate
+is already under the comp set) and the RevPAN boost both need the comp-set
+median price, which arrives in background enrichment. Before it lands the
+engine shows the unbraked figure (e.g. −15%), then flips to −5% — so a price
+pushed early gets "undone" by the next refresh. `recPrice` returns
+`provisional` (rendered as "…") while `u.enrich.market !== 'ok'`, and
+`stageWindow` asks for confirmation in the same state.
+
+### 6. Dates are local, and the calendar starts today
+
+`iso()` uses the local date, not `toISOString()` (UTC). In US evenings UTC is
+already tomorrow, which dropped tonight — and in the fetch that started at
+`today + 1`, Saturday too. Offsets for tonight are clamped to `0.01` so it stays
+inside the near window after noon.
+
+### 7. Floors come from the seasonal profile, and fixed prices never go under them
+
+If the listing has a PriceLabs Custom Seasonal Profile, it's read on the fast
+path (`get_customizations`, `custom_seasonal_profile`). Each night gets
+`d.season` and `d.floor` (percentage type: listing min × (1 + season min %);
+fixed type: the season's dollar min). `floorFor()` replaces `u.min` in the
+recommendation clamp, FLR markers and the at-floor count.
+
+Fixed-dollar date overrides replace PriceLabs' price outright and **skip the
+floor** — percentage overrides respect it. So `stageDay` raises any typed
+price below the night's season minimum to the minimum (with a tray warning),
+and existing fixed overrides below it are flagged (`d.belowFloor`, "<MIN"),
+surfaced in This week's moves, and can be staged for removal.
 
 ## Data model
 
@@ -199,7 +230,7 @@ A market booking 0–5 days out yields 0–15 / 15–30 / 30–60. One booking 4
 
 **Progressive load.** Properties paint as they arrive rather than after all complete. With the rate limiter, twenty properties take over a minute end to end; first paint is ~20ms.
 
-**Rate limiter.** 50 requests per rolling 60s against PriceLabs' 60/min ceiling. A full load is `1 + 5N` calls, so twenty properties is ~101 requests. Retries re-enter the gate.
+**Rate limiter.** 50 requests per rolling 60s against PriceLabs' 60/min ceiling. A full load is `1 + 6N` calls (4 fast-path + 2 enrichment per property), so twenty properties is ~121 requests. Retries re-enter the gate.
 
 **Lazy rendering.** `renderAll()` builds only the tab in `CUR`. Rebuilding all five on every state change was wasteful at scale.
 

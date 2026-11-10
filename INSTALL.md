@@ -63,7 +63,7 @@ Same dashboard, no guided setup.
    > get_listing_prices, get_listing_date_overrides, get_listings, get_bookings_report,
    > update_listing_data, update_listing_date_overrides, delete_listing_date_overrides,
    > refresh_listing_pricing, get_listing_health_and_recommendations,
-   > get_neighbourhood_data, diagnose_no_bookings, get_available_nudges, accept_nudge
+   > get_neighbourhood_data, diagnose_no_bookings, get_available_nudges, accept_nudge, get_customizations
 
    Claude needs to call each tool once first to confirm it works — let it.
 
